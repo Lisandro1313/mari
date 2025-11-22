@@ -1,15 +1,22 @@
-# 🏥 MARI - Sistema Municipal de Registro de Castraciones
+# 🏥 MATECA - Sistema Municipal de Registro de Castraciones
 
-Sistema completo de gestión y registro de castraciones de animales para veterinarios municipales.
+Sistema completo de gestión y registro de castraciones de animales para veterinarios municipales de Gualeguaychú, Entre Ríos.
+
+## 🌐 Demo en vivo
+
+**Accedé a la aplicación:** [https://mateca.onrender.com](https://mateca.onrender.com)
 
 ## 📋 Características
 
+- 🏠 **Dashboard operativo** con métricas en tiempo real
+- 📅 **Gestión de turnos** y cronograma semanal
 - ✅ **Registro completo** de castraciones con datos del animal y tutor
 - 🔍 **Búsqueda avanzada** por múltiples criterios
-- 📊 **Estadísticas detalladas** con gráficos visuales
+- 📊 **Estadísticas detalladas** con gráficos interactivos (Chart.js)
 - 💾 **Base de datos SQLite** integrada
 - 🎨 **Interfaz moderna y amigable**
 - 📱 **Diseño responsive** para usar en cualquier dispositivo
+- 🗺️ **Datos locales** con barrios y calles de Gualeguaychú
 
 ## 🗂️ Datos que registra
 

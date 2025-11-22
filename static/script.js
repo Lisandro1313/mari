@@ -574,7 +574,7 @@ async function cargarDashboard() {
 
 function renderizarTurnosHoy(turnos) {
     const container = document.getElementById('turnos-hoy-list');
-    
+
     if (!turnos || turnos.length === 0) {
         container.innerHTML = '<p style="color: #6b7280; text-align: center; padding: 20px;">No hay turnos programados para hoy</p>';
         return;
@@ -608,7 +608,7 @@ function renderizarTurnosHoy(turnos) {
 
 function renderizarCronograma(turnos) {
     const container = document.getElementById('cronograma-semana');
-    
+
     if (!turnos || turnos.length === 0) {
         container.innerHTML = '<p style="color: #6b7280; text-align: center; padding: 20px;">No hay turnos programados para esta semana</p>';
         return;
@@ -644,7 +644,7 @@ function renderizarCronograma(turnos) {
 
 function renderizarUltimasCastraciones(castraciones) {
     const container = document.getElementById('ultimas-castraciones');
-    
+
     if (!castraciones || castraciones.length === 0) {
         container.innerHTML = '<p style="color: #6b7280; text-align: center; padding: 20px;">No hay registros recientes</p>';
         return;
@@ -670,7 +670,7 @@ function formatearFechaCronograma(fecha) {
     const fechaObj = new Date(year, month - 1, day);
     const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
     const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-    
+
     return `${dias[fechaObj.getDay()]} ${day}/${month} - ${meses[parseInt(month) - 1]}`;
 }
 
@@ -686,7 +686,7 @@ function cerrarModalTurno() {
 
 async function guardarTurno(event) {
     event.preventDefault();
-    
+
     const formData = new FormData(event.target);
     const turno = {
         fecha: formData.get('fecha'),
