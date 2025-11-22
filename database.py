@@ -38,7 +38,24 @@ class Database:
                 sexo TEXT NOT NULL,
                 edad TEXT,
                 tutor_id INTEGER NOT NULL,
+                atencion_primaria INTEGER DEFAULT 0,
+                observaciones TEXT,
                 FOREIGN KEY (tutor_id) REFERENCES tutores(id)
+            )
+        ''')
+        
+        # Tabla de turnos/cronograma
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS turnos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                fecha DATE NOT NULL,
+                hora TEXT NOT NULL,
+                nombre_animal TEXT NOT NULL,
+                tutor_nombre TEXT NOT NULL,
+                telefono TEXT,
+                tipo TEXT NOT NULL,
+                estado TEXT DEFAULT 'pendiente',
+                observaciones TEXT
             )
         ''')
         
@@ -338,3 +355,122 @@ class Database:
         except Exception as e:
             conn.close()
             return False, f"Error al eliminar: {str(e)}"
+    
+    def obtener_dashboard_stats(self):
+        """Obtiene estadísticas para el dashboard principal"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        stats = {}
+        
+        # Castraciones de hoy
+        cursor.execute('''
+            SELECT COUNT(*) FROM castraciones 
+            WHERE DATE(fecha) = DATE('now')
+        ''')
+        stats['hoy'] = cursor.fetchone()[0]
+        
+        # Castraciones de esta semana
+        cursor.execute('''
+            SELECT COUNT(*) FROM castraciones 
+            WHERE DATE(fecha) >= DATE('now', 'weekday 0', '-7 days')
+        ''')
+        stats['semana'] = cursor.fetchone()[0]
+        
+        # Castraciones del mes
+        cursor.execute('''
+            SELECT COUNT(*) FROM castraciones 
+            WHERE strftime('%Y-%m', fecha) = strftime('%Y-%m', 'now')
+        ''')
+        stats['mes'] = cursor.fetchone()[0]
+        
+        # Atención primaria vs recurrente hoy
+        cursor.execute('''
+            SELECT 
+                SUM(CASE WHEN atencion_primaria = 1 THEN 1 ELSE 0 END) as primaria,
+                SUM(CASE WHEN atencion_primaria = 0 THEN 1 ELSE 0 END) as recurrente
+            FROM castraciones 
+            WHERE DATE(fecha) = DATE('now')
+        ''')
+        row = cursor.fetchone()
+        stats['primaria_hoy'] = row[0] or 0
+        stats['recurrente_hoy'] = row[1] or 0
+        
+        # Últimas 5 castraciones
+        cursor.execute('''
+            SELECT c.numero, c.fecha, c.nombre_animal, c.especie, 
+                   t.nombre_apellido, c.atencion_primaria
+            FROM castraciones c
+            JOIN tutores t ON c.tutor_id = t.id
+            ORDER BY c.fecha DESC, c.numero DESC
+            LIMIT 5
+        ''')
+        stats['ultimas'] = cursor.fetchall()
+        
+        # Turnos de hoy
+        cursor.execute('''
+            SELECT id, hora, nombre_animal, tutor_nombre, tipo, estado
+            FROM turnos
+            WHERE DATE(fecha) = DATE('now')
+            ORDER BY hora
+        ''')
+        stats['turnos_hoy'] = cursor.fetchall()
+        
+        # Turnos de esta semana
+        cursor.execute('''
+            SELECT fecha, hora, nombre_animal, tutor_nombre, tipo, estado
+            FROM turnos
+            WHERE DATE(fecha) >= DATE('now')
+            AND DATE(fecha) <= DATE('now', '+7 days')
+            ORDER BY fecha, hora
+        ''')
+        stats['turnos_semana'] = cursor.fetchall()
+        
+        conn.close()
+        return stats
+    
+    def agregar_turno(self, fecha, hora, nombre_animal, tutor_nombre, telefono, tipo, observaciones=''):
+        """Agrega un nuevo turno al cronograma"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute('''
+                INSERT INTO turnos (fecha, hora, nombre_animal, tutor_nombre, telefono, tipo, observaciones)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (fecha, hora, nombre_animal, tutor_nombre, telefono, tipo, observaciones))
+            
+            conn.commit()
+            return True, "Turno agendado exitosamente"
+        except Exception as e:
+            return False, f"Error al agendar turno: {str(e)}"
+        finally:
+            conn.close()
+    
+    def actualizar_estado_turno(self, turno_id, estado):
+        """Actualiza el estado de un turno"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute('UPDATE turnos SET estado = ? WHERE id = ?', (estado, turno_id))
+            conn.commit()
+            return True, "Estado actualizado"
+        except Exception as e:
+            return False, f"Error: {str(e)}"
+        finally:
+            conn.close()
+    
+    def eliminar_turno(self, turno_id):
+        """Elimina un turno"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute('DELETE FROM turnos WHERE id = ?', (turno_id,))
+            conn.commit()
+            return True, "Turno eliminado"
+        except Exception as e:
+            return False, f"Error: {str(e)}"
+        finally:
+            conn.close()

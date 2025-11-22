@@ -148,9 +148,94 @@ def eliminar_castracion(numero):
     else:
         return jsonify({'success': False, 'message': mensaje}), 404
 
+@app.route('/api/dashboard', methods=['GET'])
+def obtener_dashboard():
+    """Endpoint para obtener datos del dashboard"""
+    stats = db.obtener_dashboard_stats()
+    
+    return jsonify({
+        'hoy': stats['hoy'],
+        'semana': stats['semana'],
+        'mes': stats['mes'],
+        'primaria_hoy': stats['primaria_hoy'],
+        'recurrente_hoy': stats['recurrente_hoy'],
+        'ultimas': [
+            {
+                'numero': row[0],
+                'fecha': row[1],
+                'nombre_animal': row[2],
+                'especie': row[3],
+                'tutor': row[4],
+                'primaria': row[5]
+            } for row in stats['ultimas']
+        ],
+        'turnos_hoy': [
+            {
+                'id': row[0],
+                'hora': row[1],
+                'nombre_animal': row[2],
+                'tutor_nombre': row[3],
+                'tipo': row[4],
+                'estado': row[5]
+            } for row in stats['turnos_hoy']
+        ],
+        'turnos_semana': [
+            {
+                'fecha': row[0],
+                'hora': row[1],
+                'nombre_animal': row[2],
+                'tutor_nombre': row[3],
+                'tipo': row[4],
+                'estado': row[5]
+            } for row in stats['turnos_semana']
+        ]
+    })
+
+@app.route('/api/turnos', methods=['POST'])
+def agregar_turno():
+    """Endpoint para agregar un turno"""
+    data = request.json
+    
+    exito, mensaje = db.agregar_turno(
+        fecha=data['fecha'],
+        hora=data['hora'],
+        nombre_animal=data['nombre_animal'],
+        tutor_nombre=data['tutor_nombre'],
+        telefono=data.get('telefono', ''),
+        tipo=data['tipo'],
+        observaciones=data.get('observaciones', '')
+    )
+    
+    if exito:
+        return jsonify({'success': True, 'message': mensaje})
+    else:
+        return jsonify({'success': False, 'message': mensaje}), 400
+
+@app.route('/api/turnos/<int:turno_id>', methods=['PUT'])
+def actualizar_turno(turno_id):
+    """Endpoint para actualizar estado de turno"""
+    data = request.json
+    exito, mensaje = db.actualizar_estado_turno(turno_id, data['estado'])
+    
+    if exito:
+        return jsonify({'success': True, 'message': mensaje})
+    else:
+        return jsonify({'success': False, 'message': mensaje}), 400
+
+@app.route('/api/turnos/<int:turno_id>', methods=['DELETE'])
+def eliminar_turno(turno_id):
+    """Endpoint para eliminar turno"""
+    exito, mensaje = db.eliminar_turno(turno_id)
+    
+    if exito:
+        return jsonify({'success': True, 'message': mensaje})
+    else:
+        return jsonify({'success': False, 'message': mensaje}), 404
+
 if __name__ == '__main__':
     print("=" * 60)
     print("MARI - Sistema de Registro de Castraciones Municipales")
+    print("Gualeguaychú, Entre Ríos")
     print("=" * 60)
     print("\nServidor iniciado en: http://localhost:5000")
     print("\nPresiona Ctrl+C para detener el servidor")

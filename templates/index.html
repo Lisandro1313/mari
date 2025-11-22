@@ -17,7 +17,11 @@
         </header>
 
         <nav class="tabs">
-            <button class="tab-button active" onclick="showTab('registro')">
+            <button class="tab-button active" onclick="showTab('dashboard')">
+                <span class="tab-icon">🏠</span>
+                <span>Dashboard</span>
+            </button>
+            <button class="tab-button" onclick="showTab('registro')">
                 <span class="tab-icon">📝</span>
                 <span>Nuevo Registro</span>
             </button>
@@ -31,8 +35,73 @@
             </button>
         </nav>
 
+        <!-- TAB: DASHBOARD -->
+        <div id="dashboard" class="tab-content active">
+            <div class="card">
+                <h2>🏠 Dashboard - Gualeguaychú, Entre Ríos</h2>
+                
+                <!-- Métricas del día -->
+                <div class="dashboard-metrics">
+                    <div class="metric-card today">
+                        <div class="metric-icon">🐾</div>
+                        <div class="metric-content">
+                            <div class="metric-title">Castraciones Hoy</div>
+                            <div class="metric-value" id="dash-hoy">0</div>
+                        </div>
+                    </div>
+                    
+                    <div class="metric-card week">
+                        <div class="metric-icon">📅</div>
+                        <div class="metric-content">
+                            <div class="metric-title">Esta Semana</div>
+                            <div class="metric-value" id="dash-semana">0</div>
+                        </div>
+                    </div>
+                    
+                    <div class="metric-card month">
+                        <div class="metric-icon">📆</div>
+                        <div class="metric-content">
+                            <div class="metric-title">Este Mes</div>
+                            <div class="metric-value" id="dash-mes">0</div>
+                        </div>
+                    </div>
+                    
+                    <div class="metric-card primaria">
+                        <div class="metric-icon">🆕</div>
+                        <div class="metric-content">
+                            <div class="metric-title">Atención Primaria Hoy</div>
+                            <div class="metric-value" id="dash-primaria">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Turnos de hoy -->
+                <div class="dashboard-section">
+                    <div class="section-header">
+                        <h3>📋 Agenda de Hoy</h3>
+                        <button class="btn btn-primary btn-sm" onclick="mostrarFormularioTurno()">
+                            ➕ Nuevo Turno
+                        </button>
+                    </div>
+                    <div id="turnos-hoy-list" class="turnos-list"></div>
+                </div>
+
+                <!-- Cronograma de la semana -->
+                <div class="dashboard-section">
+                    <h3>📅 Cronograma de la Semana</h3>
+                    <div id="cronograma-semana" class="cronograma-container"></div>
+                </div>
+
+                <!-- Últimas castraciones -->
+                <div class="dashboard-section">
+                    <h3>🕐 Últimas Castraciones Realizadas</h3>
+                    <div id="ultimas-castraciones" class="ultimas-list"></div>
+                </div>
+            </div>
+        </div>
+
         <!-- TAB: REGISTRO -->
-        <div id="registro" class="tab-content active">
+        <div id="registro" class="tab-content">
             <div class="card">
                 <h2>Registrar Nueva Castración</h2>
                 <form id="formRegistro">
@@ -262,6 +331,59 @@
     </div>
 
     <div id="notification" class="notification"></div>
+
+    <!-- Modal para nuevo turno -->
+    <div id="modalTurno" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="cerrarModalTurno()">&times;</span>
+            <h3>Agendar Nuevo Turno</h3>
+            <form id="formTurno">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Fecha*</label>
+                        <input type="date" name="fecha" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Hora*</label>
+                        <input type="time" name="hora" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Nombre del Animal*</label>
+                        <input type="text" name="nombre_animal" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Nombre del Tutor*</label>
+                        <input type="text" name="tutor_nombre" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Teléfono</label>
+                        <input type="tel" name="telefono">
+                    </div>
+                    <div class="form-group">
+                        <label>Tipo de Atención*</label>
+                        <select name="tipo" required>
+                            <option value="Castración">Castración</option>
+                            <option value="Retiro de puntos">Retiro de puntos</option>
+                            <option value="Control post-operatorio">Control post-operatorio</option>
+                            <option value="Consulta">Consulta</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Observaciones</label>
+                    <textarea name="observaciones" rows="2"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary">Agendar</button>
+                    <button type="button" class="btn btn-secondary" onclick="cerrarModalTurno()">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>

@@ -2,6 +2,7 @@
 let chartTemporal, chartEspecie, chartSexo, chartEspecieSexo, chartBarrios;
 let currentStatsData = null;
 let currentTimeView = 'dia';
+let dashboardData = null;
 
 // Navegación entre tabs
 function showTab(tabName) {
@@ -22,6 +23,10 @@ function showTab(tabName) {
 
     if (tabName === 'busqueda') {
         buscarCastraciones();
+    }
+
+    if (tabName === 'dashboard') {
+        cargarDashboard();
     }
 }
 
@@ -536,4 +541,226 @@ function formatearMes(mes) {
 document.addEventListener('DOMContentLoaded', () => {
     establecerFechaActual();
     cargarSiguienteNumero();
+    cargarDashboard();
 });
+
+// ===== DASHBOARD =====
+async function cargarDashboard() {
+    try {
+        const response = await fetch('/api/dashboard');
+        const data = await response.json();
+        dashboardData = data;
+
+        // Actualizar métricas
+        document.getElementById('metric-hoy').textContent = data.castraciones_hoy;
+        document.getElementById('metric-semana').textContent = data.castraciones_semana;
+        document.getElementById('metric-mes').textContent = data.castraciones_mes;
+        document.getElementById('metric-primaria').textContent = data.atencion_primaria;
+
+        // Renderizar turnos de hoy
+        renderizarTurnosHoy(data.turnos_hoy);
+
+        // Renderizar cronograma de la semana
+        renderizarCronograma(data.turnos_semana);
+
+        // Renderizar últimas castraciones
+        renderizarUltimasCastraciones(data.ultimas_castraciones);
+
+    } catch (error) {
+        console.error('Error al cargar dashboard:', error);
+        mostrarNotificacion('Error al cargar datos del dashboard', 'error');
+    }
+}
+
+function renderizarTurnosHoy(turnos) {
+    const container = document.getElementById('turnos-hoy-list');
+    
+    if (!turnos || turnos.length === 0) {
+        container.innerHTML = '<p style="color: #6b7280; text-align: center; padding: 20px;">No hay turnos programados para hoy</p>';
+        return;
+    }
+
+    container.innerHTML = turnos.map(turno => `
+        <div class="turno-item">
+            <div class="turno-info">
+                <div class="turno-hora">${turno.hora}</div>
+                <div class="turno-detalles">
+                    <strong>${turno.nombre_animal}</strong> - ${turno.tutor_nombre}
+                    <br>
+                    <span class="turno-tipo">${turno.tipo}</span>
+                </div>
+            </div>
+            <div class="turno-actions">
+                ${turno.estado === 'pendiente' ? `
+                    <button class="btn-icon btn-complete" onclick="actualizarEstadoTurno(${turno.id}, 'completado')" title="Completar">
+                        ✓
+                    </button>
+                    <button class="btn-icon btn-cancel" onclick="actualizarEstadoTurno(${turno.id}, 'cancelado')" title="Cancelar">
+                        ✕
+                    </button>
+                ` : `
+                    <span class="estado-badge estado-${turno.estado}">${turno.estado}</span>
+                `}
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderizarCronograma(turnos) {
+    const container = document.getElementById('cronograma-semana');
+    
+    if (!turnos || turnos.length === 0) {
+        container.innerHTML = '<p style="color: #6b7280; text-align: center; padding: 20px;">No hay turnos programados para esta semana</p>';
+        return;
+    }
+
+    // Agrupar turnos por fecha
+    const turnosPorFecha = {};
+    turnos.forEach(turno => {
+        if (!turnosPorFecha[turno.fecha]) {
+            turnosPorFecha[turno.fecha] = [];
+        }
+        turnosPorFecha[turno.fecha].push(turno);
+    });
+
+    // Ordenar fechas
+    const fechasOrdenadas = Object.keys(turnosPorFecha).sort();
+
+    container.innerHTML = fechasOrdenadas.map(fecha => `
+        <div class="cronograma-dia">
+            <div class="cronograma-fecha">${formatearFechaCronograma(fecha)}</div>
+            <div class="cronograma-turnos">
+                ${turnosPorFecha[fecha].map(turno => `
+                    <div class="cronograma-turno">
+                        <span class="cronograma-turno-hora">${turno.hora}</span>
+                        <span>${turno.nombre_animal} - ${turno.tipo}</span>
+                        <span class="estado-badge estado-${turno.estado}">${turno.estado}</span>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderizarUltimasCastraciones(castraciones) {
+    const container = document.getElementById('ultimas-castraciones');
+    
+    if (!castraciones || castraciones.length === 0) {
+        container.innerHTML = '<p style="color: #6b7280; text-align: center; padding: 20px;">No hay registros recientes</p>';
+        return;
+    }
+
+    container.innerHTML = castraciones.map(c => `
+        <div class="ultima-item">
+            <div class="ultima-info">
+                <div class="ultima-numero">#${c.numero} - ${c.nombre_animal}</div>
+                <div class="ultima-detalles">
+                    ${formatearFecha(c.fecha)} - ${c.especie} ${c.sexo}
+                </div>
+            </div>
+            <span class="badge-${c.atencion_primaria ? 'primaria' : 'recurrente'}">
+                ${c.atencion_primaria ? 'Atención Primaria' : 'Recurrente'}
+            </span>
+        </div>
+    `).join('');
+}
+
+function formatearFechaCronograma(fecha) {
+    const [year, month, day] = fecha.split('-');
+    const fechaObj = new Date(year, month - 1, day);
+    const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    
+    return `${dias[fechaObj.getDay()]} ${day}/${month} - ${meses[parseInt(month) - 1]}`;
+}
+
+// ===== GESTIÓN DE TURNOS =====
+function mostrarFormularioTurno() {
+    document.getElementById('modal-turno').classList.add('show');
+}
+
+function cerrarModalTurno() {
+    document.getElementById('modal-turno').classList.remove('show');
+    document.getElementById('form-turno').reset();
+}
+
+async function guardarTurno(event) {
+    event.preventDefault();
+    
+    const formData = new FormData(event.target);
+    const turno = {
+        fecha: formData.get('fecha'),
+        hora: formData.get('hora'),
+        nombre_animal: formData.get('nombre_animal'),
+        tutor_nombre: formData.get('tutor_nombre'),
+        telefono: formData.get('telefono'),
+        tipo: formData.get('tipo'),
+        observaciones: formData.get('observaciones')
+    };
+
+    try {
+        const response = await fetch('/api/turnos', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(turno)
+        });
+
+        if (response.ok) {
+            mostrarNotificacion('Turno creado exitosamente', 'success');
+            cerrarModalTurno();
+            cargarDashboard();
+        } else {
+            mostrarNotificacion('Error al crear turno', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        mostrarNotificacion('Error al crear turno', 'error');
+    }
+}
+
+async function actualizarEstadoTurno(id, estado) {
+    try {
+        const response = await fetch(`/api/turnos/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ estado })
+        });
+
+        if (response.ok) {
+            mostrarNotificacion(`Turno ${estado}`, 'success');
+            cargarDashboard();
+        } else {
+            mostrarNotificacion('Error al actualizar turno', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        mostrarNotificacion('Error al actualizar turno', 'error');
+    }
+}
+
+async function eliminarTurno(id) {
+    if (!confirm('¿Está seguro de eliminar este turno?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/turnos/${id}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            mostrarNotificacion('Turno eliminado', 'success');
+            cargarDashboard();
+        } else {
+            mostrarNotificacion('Error al eliminar turno', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        mostrarNotificacion('Error al eliminar turno', 'error');
+    }
+}
+
