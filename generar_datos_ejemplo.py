@@ -54,13 +54,44 @@ def generar_datos_ejemplo():
     cursor = conn.cursor()
     
     # Limpiar datos existentes
-    cursor.execute('DELETE FROM castraciones')
+    cursor.execute('DELETE FROM atenciones')
     cursor.execute('DELETE FROM tutores')
     cursor.execute('DELETE FROM turnos')
     
     print("Generando datos de ejemplo para Gualeguaychú...")
     
     fecha_inicio = datetime.now() - timedelta(days=180)  # Últimos 6 meses
+    
+    motivos_atencion = [
+        "Retiro de puntos post-castración",
+        "Control post-operatorio",
+        "Revisión general",
+        "Consulta por herida",
+        "Vacunación",
+        "Desparasitación",
+        "Consulta por síntomas",
+        "Control de salud"
+    ]
+    
+    diagnosticos = [
+        "Cicatrización normal",
+        "Herida superficial tratada",
+        "Animal en buen estado",
+        "Requiere medicación",
+        "En observación",
+        "Alta médica",
+        "Continuar tratamiento"
+    ]
+    
+    tratamientos = [
+        "Limpieza de herida",
+        "Antibiótico oral",
+        "Antiinflamatorio",
+        "Vacuna antirrábica",
+        "Desparasitante interno",
+        "Cura tópica",
+        "Reposo indicado"
+    ]
     
     for i in range(30):
         # Datos del animal
@@ -71,7 +102,21 @@ def generar_datos_ejemplo():
         especie = random.choice(["Canino", "Canino", "Canino", "Felino", "Felino"])  # Más caninos
         sexo = random.choice(["Macho", "Hembra"])
         edad = random.choice(["6 meses", "1 año", "2 años", "3 años", "4 años", "5 años", "8 meses"])
-        atencion_primaria = 1 if random.random() > 0.3 else 0  # 70% atención primaria
+        
+        # Tipo de atención (60% castraciones, 40% atención primaria)
+        tipo_atencion = "castracion" if random.random() > 0.4 else "atencion_primaria"
+        
+        # Datos específicos según tipo
+        if tipo_atencion == "atencion_primaria":
+            motivo = random.choice(motivos_atencion)
+            diagnostico = random.choice(diagnosticos)
+            tratamiento = random.choice(tratamientos)
+            derivacion = "Hospital Veterinario Municipal" if random.random() > 0.85 else ""
+        else:
+            motivo = f"Castración de {especie.lower()} {sexo.lower()}"
+            diagnostico = "Cirugía exitosa"
+            tratamiento = "Control en 7 días"
+            derivacion = ""
         
         # Datos del tutor - Direcciones de Gualeguaychú
         tutor = random.choice(nombres_tutores)
@@ -96,19 +141,23 @@ def generar_datos_ejemplo():
             ''', (nombre_apellido, dni, direccion, barrio, telefono))
             tutor_id = cursor.lastrowid
         
-        # Agregar castración
+        # Agregar atención
+        observaciones = f"Registrado automáticamente. Barrio: {barrio}"
         try:
             cursor.execute('''
-                INSERT INTO castraciones (numero, fecha, nombre_animal, especie, sexo, edad, tutor_id, atencion_primaria)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (numero, fecha, nombre_animal, especie, sexo, edad, tutor_id, atencion_primaria))
-            print(f"✓ Registro {numero}: {nombre_animal} ({especie} - {sexo}) - {fecha}")
+                INSERT INTO atenciones (numero, fecha, tipo_atencion, nombre_animal, especie, sexo, edad, 
+                                       tutor_id, motivo, diagnostico, tratamiento, derivacion, observaciones)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (numero, fecha, tipo_atencion, nombre_animal, especie, sexo, edad, tutor_id,
+                  motivo, diagnostico, tratamiento, derivacion, observaciones))
+            tipo_texto = "Castración" if tipo_atencion == "castracion" else "Atención Primaria"
+            print(f"✓ Registro {numero}: {nombre_animal} ({especie} - {sexo}) - {tipo_texto} - {fecha}")
         except Exception as e:
             print(f"✗ Error en registro {numero}: {e}")
     
     # Generar turnos para esta semana
     print("\nGenerando turnos de esta semana...")
-    tipos_turno = ["Castración", "Retiro de puntos", "Control post-operatorio", "Consulta"]
+    tipos_turno = ["Castración", "Retiro de puntos", "Control post-operatorio", "Consulta", "Vacunación"]
     horas = ["08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"]
     
     for dia in range(7):

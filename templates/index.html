@@ -3,387 +3,408 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MARI - Sistema de Registro de Castraciones</title>
+    <title>MATECA - Sistema de Atención Veterinaria</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <div class="header-content">
-                <h1>🏥 MARI</h1>
-                <p class="subtitle">Sistema Municipal de Registro de Castraciones</p>
-            </div>
-        </header>
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h1>🏥 MATECA</h1>
+            <p>Gualeguaychú, ER</p>
+        </div>
 
-        <nav class="tabs">
-            <button class="tab-button active" onclick="showTab('dashboard')">
-                <span class="tab-icon">🏠</span>
+        <nav class="sidebar-nav">
+            <a href="#" class="nav-item active" data-section="dashboard">
+                <span class="nav-icon">📊</span>
                 <span>Dashboard</span>
-            </button>
-            <button class="tab-button" onclick="showTab('registro')">
-                <span class="tab-icon">📝</span>
-                <span>Nuevo Registro</span>
-            </button>
-            <button class="tab-button" onclick="showTab('busqueda')">
-                <span class="tab-icon">🔍</span>
+            </a>
+            <a href="#" class="nav-item" data-section="registro">
+                <span class="nav-icon">➕</span>
+                <span>Nueva Atención</span>
+            </a>
+            <a href="#" class="nav-item" data-section="busqueda">
+                <span class="nav-icon">🔍</span>
                 <span>Búsqueda</span>
-            </button>
-            <button class="tab-button" onclick="showTab('estadisticas')">
-                <span class="tab-icon">📊</span>
+            </a>
+            <a href="#" class="nav-item" data-section="estadisticas">
+                <span class="nav-icon">📈</span>
                 <span>Estadísticas</span>
-            </button>
+            </a>
+            <a href="#" class="nav-item" data-section="turnos">
+                <span class="nav-icon">📅</span>
+                <span>Agenda</span>
+            </a>
         </nav>
 
-        <!-- TAB: DASHBOARD -->
-        <div id="dashboard" class="tab-content active">
-            <div class="card">
-                <h2>🏠 Dashboard - Gualeguaychú, Entre Ríos</h2>
-                
-                <!-- Métricas del día -->
-                <div class="dashboard-metrics">
-                    <div class="metric-card today">
-                        <div class="metric-icon">🐾</div>
-                        <div class="metric-content">
-                            <div class="metric-title">Castraciones Hoy</div>
-                            <div class="metric-value" id="dash-hoy">0</div>
-                        </div>
-                    </div>
-                    
-                    <div class="metric-card week">
-                        <div class="metric-icon">📅</div>
-                        <div class="metric-content">
-                            <div class="metric-title">Esta Semana</div>
-                            <div class="metric-value" id="dash-semana">0</div>
-                        </div>
-                    </div>
-                    
-                    <div class="metric-card month">
-                        <div class="metric-icon">📆</div>
-                        <div class="metric-content">
-                            <div class="metric-title">Este Mes</div>
-                            <div class="metric-value" id="dash-mes">0</div>
-                        </div>
-                    </div>
-                    
-                    <div class="metric-card primaria">
-                        <div class="metric-icon">🆕</div>
-                        <div class="metric-content">
-                            <div class="metric-title">Atención Primaria Hoy</div>
-                            <div class="metric-value" id="dash-primaria">0</div>
-                        </div>
-                    </div>
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <div class="user-avatar">MT</div>
+                <div class="user-details">
+                    <div class="user-name">{{ usuario }}</div>
+                    <div class="user-role">Administrativa</div>
                 </div>
+            </div>
+            <button onclick="logout()" class="btn-logout">Cerrar Sesión</button>
+        </div>
+    </div>
 
-                <!-- Turnos de hoy -->
-                <div class="dashboard-section">
-                    <div class="section-header">
-                        <h3>📋 Agenda de Hoy</h3>
-                        <button class="btn btn-primary btn-sm" onclick="mostrarFormularioTurno()">
-                            ➕ Nuevo Turno
-                        </button>
-                    </div>
-                    <div id="turnos-hoy-list" class="turnos-list"></div>
-                </div>
-
-                <!-- Cronograma de la semana -->
-                <div class="dashboard-section">
-                    <h3>📅 Cronograma de la Semana</h3>
-                    <div id="cronograma-semana" class="cronograma-container"></div>
-                </div>
-
-                <!-- Últimas castraciones -->
-                <div class="dashboard-section">
-                    <h3>🕐 Últimas Castraciones Realizadas</h3>
-                    <div id="ultimas-castraciones" class="ultimas-list"></div>
-                </div>
+    <!-- MAIN CONTENT -->
+    <div class="main-content">
+        <div class="topbar">
+            <div class="topbar-left">
+                <h2 id="section-title">Dashboard</h2>
+                <p id="section-subtitle">Vista general del sistema</p>
+            </div>
+            <div class="topbar-right">
+                <button onclick="exportarExcel()" class="btn-export">
+                    <span>📥</span> Exportar Excel
+                </button>
+                <div class="datetime" id="current-datetime"></div>
             </div>
         </div>
 
-        <!-- TAB: REGISTRO -->
-        <div id="registro" class="tab-content">
-            <div class="card">
-                <h2>Registrar Nueva Castración</h2>
-                <form id="formRegistro">
-                    <div class="section">
-                        <h3>📋 Datos del Animal</h3>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="numero">N° Registro*</label>
-                                <input type="number" id="numero" name="numero" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="fecha">Fecha*</label>
-                                <input type="date" id="fecha" name="fecha" required>
-                            </div>
+        <!-- DASHBOARD SECTION -->
+        <section id="dashboard" class="content-section active">
+            <div class="metrics-grid">
+                <div class="metric-card primary">
+                    <div class="metric-icon">🏥</div>
+                    <div class="metric-content">
+                        <div class="metric-label">Atenciones Hoy</div>
+                        <div class="metric-value" id="metric-hoy">0</div>
+                    </div>
+                </div>
+
+                <div class="metric-card success">
+                    <div class="metric-icon">📅</div>
+                    <div class="metric-content">
+                        <div class="metric-label">Esta Semana</div>
+                        <div class="metric-value" id="metric-semana">0</div>
+                    </div>
+                </div>
+
+                <div class="metric-card info">
+                    <div class="metric-icon">📆</div>
+                    <div class="metric-content">
+                        <div class="metric-label">Este Mes</div>
+                        <div class="metric-value" id="metric-mes">0</div>
+                    </div>
+                </div>
+
+                <div class="metric-card warning">
+                    <div class="metric-icon">🩺</div>
+                    <div class="metric-content">
+                        <div class="metric-label">Atención Primaria Hoy</div>
+                        <div class="metric-value" id="metric-primaria">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dashboard-grid">
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h3>📋 Turnos de Hoy</h3>
+                        <button onclick="mostrarFormularioTurno()" class="btn-sm btn-primary">+ Nuevo Turno</button>
+                    </div>
+                    <div class="card-body" id="turnos-hoy-container">
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
+
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h3>🕒 Últimas Atenciones</h3>
+                    </div>
+                    <div class="card-body" id="ultimas-atenciones-container">
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dashboard-card full-width">
+                <div class="card-header">
+                    <h3>📅 Cronograma Semanal</h3>
+                </div>
+                <div class="card-body" id="cronograma-container">
+                    <div class="loading-spinner"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- REGISTRO SECTION -->
+        <section id="registro" class="content-section">
+            <div class="form-card">
+                <div class="form-header">
+                    <h3>Nueva Atención Veterinaria</h3>
+                    <p>Complete los datos del animal y tutor</p>
+                </div>
+
+                <form id="form-atencion" class="modern-form">
+                    <div class="form-section">
+                        <h4>Tipo de Atención</h4>
+                        <div class="tipo-atencion-selector">
+                            <label class="tipo-option active">
+                                <input type="radio" name="tipo_atencion" value="castracion" checked>
+                                <div class="option-content">
+                                    <span class="option-icon">✂️</span>
+                                    <span class="option-label">Castración</span>
+                                </div>
+                            </label>
+                            <label class="tipo-option">
+                                <input type="radio" name="tipo_atencion" value="atencion_primaria">
+                                <div class="option-content">
+                                    <span class="option-icon">🩺</span>
+                                    <span class="option-label">Atención Primaria</span>
+                                </div>
+                            </label>
                         </div>
-                        
-                        <div class="form-row">
+                    </div>
+
+                    <div class="form-section">
+                        <h4>Datos del Animal</h4>
+                        <div class="form-grid">
                             <div class="form-group">
-                                <label for="nombre_animal">Nombre del Animal*</label>
-                                <input type="text" id="nombre_animal" name="nombre_animal" required>
+                                <label>Número de Registro*</label>
+                                <input type="number" name="numero" id="numero" required>
                             </div>
                             <div class="form-group">
-                                <label for="especie">Especie*</label>
-                                <select id="especie" name="especie" required>
-                                    <option value="">Seleccionar...</option>
+                                <label>Fecha*</label>
+                                <input type="date" name="fecha" id="fecha" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Nombre del Animal*</label>
+                                <input type="text" name="nombre_animal" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Especie*</label>
+                                <select name="especie" required>
+                                    <option value="">Seleccione...</option>
                                     <option value="Canino">Canino</option>
                                     <option value="Felino">Felino</option>
                                     <option value="Otro">Otro</option>
                                 </select>
                             </div>
-                        </div>
-                        
-                        <div class="form-row">
                             <div class="form-group">
-                                <label for="sexo">Sexo*</label>
-                                <select id="sexo" name="sexo" required>
-                                    <option value="">Seleccionar...</option>
+                                <label>Sexo*</label>
+                                <select name="sexo" required>
+                                    <option value="">Seleccione...</option>
                                     <option value="Macho">Macho</option>
                                     <option value="Hembra">Hembra</option>
                                 </select>
                             </div>
                             <div class="form-group">
-                                <label for="edad">Edad</label>
-                                <input type="text" id="edad" name="edad" placeholder="Ej: 2 años, 6 meses">
+                                <label>Edad Aproximada</label>
+                                <input type="text" name="edad" placeholder="Ej: 2 años, 6 meses">
                             </div>
                         </div>
                     </div>
 
-                    <div class="section">
-                        <h3>👤 Datos del Tutor</h3>
-                        <div class="form-row">
+                    <div class="form-section">
+                        <h4>Datos del Tutor</h4>
+                        <div class="form-grid">
                             <div class="form-group">
-                                <label for="nombre_apellido">Nombre y Apellido*</label>
-                                <input type="text" id="nombre_apellido" name="nombre_apellido" required>
+                                <label>Nombre y Apellido*</label>
+                                <input type="text" name="nombre_apellido" required>
                             </div>
                             <div class="form-group">
-                                <label for="dni">DNI*</label>
-                                <input type="text" id="dni" name="dni" required>
+                                <label>DNI*</label>
+                                <input type="text" name="dni" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Teléfono</label>
+                                <input type="text" name="telefono" placeholder="3446-XXXXXX">
+                            </div>
+                            <div class="form-group">
+                                <label>Dirección</label>
+                                <input type="text" name="direccion" placeholder="Calle y número">
+                            </div>
+                            <div class="form-group">
+                                <label>Barrio</label>
+                                <input type="text" name="barrio" list="barrios-list">
+                                <datalist id="barrios-list">
+                                    <option value="Centro">
+                                    <option value="Pueblo Nuevo">
+                                    <option value="Barrio Parque">
+                                    <option value="Pueblo Belgrano">
+                                    <option value="Villa Elisa">
+                                    <option value="Larralde">
+                                    <option value="San José">
+                                </datalist>
                             </div>
                         </div>
-                        
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="direccion">Dirección</label>
-                                <input type="text" id="direccion" name="direccion">
+                    </div>
+
+                    <!-- CAMPOS ESPECÍFICOS ATENCIÓN PRIMARIA -->
+                    <div class="form-section" id="section-atencion-primaria" style="display: none;">
+                        <h4>Detalles de Atención Primaria</h4>
+                        <div class="form-grid">
+                            <div class="form-group full-width">
+                                <label>Motivo de Consulta*</label>
+                                <textarea name="motivo" rows="2" placeholder="Ej: Retiro de puntos, Control post-operatorio, Consulta general"></textarea>
                             </div>
-                            <div class="form-group">
-                                <label for="barrio">Barrio</label>
-                                <input type="text" id="barrio" name="barrio">
+                            <div class="form-group full-width">
+                                <label>Diagnóstico</label>
+                                <textarea name="diagnostico" rows="2" placeholder="Diagnóstico o evaluación del veterinario"></textarea>
+                            </div>
+                            <div class="form-group full-width">
+                                <label>Tratamiento Aplicado</label>
+                                <textarea name="tratamiento" rows="2" placeholder="Medicación, procedimientos realizados"></textarea>
+                            </div>
+                            <div class="form-group full-width">
+                                <label>Derivación</label>
+                                <input type="text" name="derivacion" placeholder="Hospital, especialista, etc. (si aplica)">
                             </div>
                         </div>
-                        
+                    </div>
+
+                    <div class="form-section">
+                        <h4>Observaciones Adicionales</h4>
                         <div class="form-group">
-                            <label for="telefono">Teléfono</label>
-                            <input type="tel" id="telefono" name="telefono">
+                            <textarea name="observaciones" rows="3" placeholder="Cualquier información adicional relevante"></textarea>
                         </div>
                     </div>
 
                     <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">Guardar Registro</button>
-                        <button type="button" class="btn btn-secondary" onclick="limpiarFormulario()">Limpiar</button>
+                        <button type="button" onclick="limpiarFormulario()" class="btn btn-secondary">Limpiar</button>
+                        <button type="submit" class="btn btn-primary">Registrar Atención</button>
                     </div>
                 </form>
             </div>
-        </div>
+        </section>
 
-        <!-- TAB: BÚSQUEDA -->
-        <div id="busqueda" class="tab-content">
-            <div class="card">
-                <h2>Búsqueda de Registros</h2>
-                <form id="formBusqueda">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="busq_numero">N° Registro</label>
-                            <input type="number" id="busq_numero" name="numero">
-                        </div>
-                        <div class="form-group">
-                            <label for="busq_especie">Especie</label>
-                            <input type="text" id="busq_especie" name="especie">
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="busq_dni">DNI Tutor</label>
-                            <input type="text" id="busq_dni" name="dni">
-                        </div>
-                        <div class="form-group">
-                            <label for="busq_barrio">Barrio</label>
-                            <input type="text" id="busq_barrio" name="barrio">
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="busq_fecha_desde">Fecha Desde</label>
-                            <input type="date" id="busq_fecha_desde" name="fecha_desde">
-                        </div>
-                        <div class="form-group">
-                            <label for="busq_fecha_hasta">Fecha Hasta</label>
-                            <input type="date" id="busq_fecha_hasta" name="fecha_hasta">
-                        </div>
-                    </div>
-                    
-                    <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">🔍 Buscar</button>
-                        <button type="button" class="btn btn-secondary" onclick="limpiarBusqueda()">Limpiar</button>
-                    </div>
-                </form>
-
-                <div id="resultados" class="resultados"></div>
-            </div>
-        </div>
-
-        <!-- TAB: ESTADÍSTICAS -->
-        <div id="estadisticas" class="tab-content">
-            <div class="card">
-                <div class="stats-header">
-                    <h2>📊 Panel de Estadísticas</h2>
-                    <div class="stats-filters">
-                        <div class="filter-group">
-                            <label>Desde:</label>
-                            <input type="date" id="stats-fecha-desde">
-                        </div>
-                        <div class="filter-group">
-                            <label>Hasta:</label>
-                            <input type="date" id="stats-fecha-hasta">
-                        </div>
-                        <button class="btn btn-primary" onclick="cargarEstadisticas()">
-                            🔄 Actualizar
-                        </button>
-                        <button class="btn btn-secondary" onclick="limpiarFiltrosEstadisticas()">
-                            ✖ Limpiar
-                        </button>
-                    </div>
+        <!-- BÚSQUEDA SECTION -->
+        <section id="busqueda" class="content-section">
+            <div class="search-card">
+                <div class="card-header">
+                    <h3>🔍 Búsqueda de Atenciones</h3>
                 </div>
-                
-                <!-- Tarjetas de resumen -->
-                <div class="stats-summary">
-                    <div class="summary-card total">
-                        <div class="summary-icon">🐾</div>
-                        <div class="summary-content">
-                            <div class="summary-title">Total Castraciones</div>
-                            <div class="summary-value" id="stat-total">0</div>
-                        </div>
+                <div class="card-body">
+                    <div class="search-filters">
+                        <input type="number" id="search-numero" placeholder="Número de registro">
+                        <select id="search-tipo">
+                            <option value="">Todos los tipos</option>
+                            <option value="castracion">Castraciones</option>
+                            <option value="atencion_primaria">Atención Primaria</option>
+                        </select>
+                        <select id="search-especie">
+                            <option value="">Todas las especies</option>
+                            <option value="Canino">Caninos</option>
+                            <option value="Felino">Felinos</option>
+                        </select>
+                        <input type="text" id="search-dni" placeholder="DNI del tutor">
+                        <input type="text" id="search-barrio" placeholder="Barrio">
+                        <input type="date" id="search-fecha-desde">
+                        <input type="date" id="search-fecha-hasta">
+                        <button onclick="buscarAtenciones()" class="btn btn-primary">Buscar</button>
                     </div>
-                    <div class="summary-card canino">
-                        <div class="summary-icon">🐕</div>
-                        <div class="summary-content">
-                            <div class="summary-title">Caninos</div>
-                            <div class="summary-value" id="stat-caninos">0</div>
-                        </div>
-                    </div>
-                    <div class="summary-card felino">
-                        <div class="summary-icon">🐈</div>
-                        <div class="summary-content">
-                            <div class="summary-title">Felinos</div>
-                            <div class="summary-value" id="stat-felinos">0</div>
-                        </div>
-                    </div>
-                    <div class="summary-card barrios">
-                        <div class="summary-icon">🏘️</div>
-                        <div class="summary-content">
-                            <div class="summary-title">Barrios Alcanzados</div>
-                            <div class="summary-value" id="stat-barrios">0</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Selector de vista temporal -->
-                <div class="time-selector">
-                    <button class="time-btn active" data-view="dia" onclick="cambiarVistaTime('dia')">Por Día</button>
-                    <button class="time-btn" data-view="semana" onclick="cambiarVistaTime('semana')">Por Semana</button>
-                    <button class="time-btn" data-view="mes" onclick="cambiarVistaTime('mes')">Por Mes</button>
-                    <button class="time-btn" data-view="anio" onclick="cambiarVistaTime('anio')">Por Año</button>
-                </div>
-
-                <!-- Gráfico temporal principal -->
-                <div class="chart-main">
-                    <canvas id="chartTemporal"></canvas>
-                </div>
-
-                <!-- Gráficos secundarios -->
-                <div class="charts-grid">
-                    <div class="chart-container">
-                        <h3>Distribución por Especie</h3>
-                        <canvas id="chartEspecie"></canvas>
-                    </div>
-                    
-                    <div class="chart-container">
-                        <h3>Distribución por Sexo</h3>
-                        <canvas id="chartSexo"></canvas>
-                    </div>
-                    
-                    <div class="chart-container">
-                        <h3>Especie y Sexo</h3>
-                        <canvas id="chartEspecieSexo"></canvas>
-                    </div>
-                    
-                    <div class="chart-container full-width">
-                        <h3>Top Barrios</h3>
-                        <canvas id="chartBarrios"></canvas>
-                    </div>
+                    <div id="resultados-busqueda" class="results-container"></div>
                 </div>
             </div>
-        </div>
+        </section>
+
+        <!-- ESTADÍSTICAS SECTION -->
+        <section id="estadisticas" class="content-section">
+            <div class="stats-header">
+                <h3>📊 Estadísticas y Reportes</h3>
+                <div class="stats-filters">
+                    <input type="date" id="stats-fecha-desde">
+                    <input type="date" id="stats-fecha-hasta">
+                    <button onclick="cargarEstadisticas()" class="btn btn-primary">Actualizar</button>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h4>Por Tipo de Atención</h4>
+                    <canvas id="chart-tipo"></canvas>
+                </div>
+                <div class="stat-card">
+                    <h4>Por Especie</h4>
+                    <canvas id="chart-especie"></canvas>
+                </div>
+                <div class="stat-card">
+                    <h4>Por Sexo</h4>
+                    <canvas id="chart-sexo"></canvas>
+                </div>
+                <div class="stat-card full-width">
+                    <h4>Tendencia Mensual</h4>
+                    <canvas id="chart-temporal"></canvas>
+                </div>
+                <div class="stat-card full-width">
+                    <h4>Top 10 Barrios</h4>
+                    <canvas id="chart-barrios"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- TURNOS SECTION -->
+        <section id="turnos" class="content-section">
+            <div class="turnos-card">
+                <div class="card-header">
+                    <h3>📅 Gestión de Agenda y Turnos</h3>
+                    <button onclick="mostrarFormularioTurno()" class="btn btn-primary">+ Nuevo Turno</button>
+                </div>
+                <div class="card-body" id="lista-turnos">
+                    <div class="loading-spinner"></div>
+                </div>
+            </div>
+        </section>
     </div>
 
-    <div id="notification" class="notification"></div>
-
-    <!-- Modal para nuevo turno -->
-    <div id="modalTurno" class="modal">
+    <!-- MODAL TURNO -->
+    <div class="modal" id="modal-turno">
+        <div class="modal-overlay" onclick="cerrarModalTurno()"></div>
         <div class="modal-content">
-            <span class="modal-close" onclick="cerrarModalTurno()">&times;</span>
-            <h3>Agendar Nuevo Turno</h3>
-            <form id="formTurno">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Fecha*</label>
-                        <input type="date" name="fecha" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Hora*</label>
-                        <input type="time" name="hora" required>
-                    </div>
+            <div class="modal-header">
+                <h3>Nuevo Turno</h3>
+                <button class="modal-close" onclick="cerrarModalTurno()">×</button>
+            </div>
+            <form id="form-turno" class="modal-body">
+                <div class="form-group">
+                    <label>Fecha*</label>
+                    <input type="date" name="fecha" required>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Nombre del Animal*</label>
-                        <input type="text" name="nombre_animal" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Nombre del Tutor*</label>
-                        <input type="text" name="tutor_nombre" required>
-                    </div>
+                <div class="form-group">
+                    <label>Hora*</label>
+                    <input type="time" name="hora" required>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Teléfono</label>
-                        <input type="tel" name="telefono">
-                    </div>
-                    <div class="form-group">
-                        <label>Tipo de Atención*</label>
-                        <select name="tipo" required>
-                            <option value="Castración">Castración</option>
-                            <option value="Retiro de puntos">Retiro de puntos</option>
-                            <option value="Control post-operatorio">Control post-operatorio</option>
-                            <option value="Consulta">Consulta</option>
-                        </select>
-                    </div>
+                <div class="form-group">
+                    <label>Nombre del Animal*</label>
+                    <input type="text" name="nombre_animal" required>
+                </div>
+                <div class="form-group">
+                    <label>Nombre del Tutor*</label>
+                    <input type="text" name="tutor_nombre" required>
+                </div>
+                <div class="form-group">
+                    <label>Teléfono</label>
+                    <input type="text" name="telefono" placeholder="3446-XXXXXX">
+                </div>
+                <div class="form-group">
+                    <label>Tipo de Turno*</label>
+                    <select name="tipo" required>
+                        <option value="Castración">Castración</option>
+                        <option value="Retiro de puntos">Retiro de puntos</option>
+                        <option value="Control">Control post-operatorio</option>
+                        <option value="Consulta">Consulta general</option>
+                        <option value="Vacunación">Vacunación</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label>Observaciones</label>
                     <textarea name="observaciones" rows="2"></textarea>
                 </div>
-                <div class="modal-actions">
-                    <button type="submit" class="btn btn-primary">Agendar</button>
-                    <button type="button" class="btn btn-secondary" onclick="cerrarModalTurno()">Cancelar</button>
-                </div>
             </form>
+            <div class="modal-footer">
+                <button type="button" onclick="cerrarModalTurno()" class="btn btn-secondary">Cancelar</button>
+                <button type="submit" form="form-turno" class="btn btn-primary">Guardar Turno</button>
+            </div>
         </div>
     </div>
+
+    <!-- NOTIFICATION -->
+    <div id="notification" class="notification"></div>
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>

@@ -1,5 +1,8 @@
 import sqlite3
 from datetime import datetime
+import pandas as pd
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment
 
 class Database:
     def __init__(self, db_name='mari.db'):
@@ -27,18 +30,23 @@ class Database:
             )
         ''')
         
-        # Tabla de castraciones
+        # Tabla de atenciones (unifica castraciones y atención primaria)
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS castraciones (
+            CREATE TABLE IF NOT EXISTS atenciones (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 numero INTEGER UNIQUE NOT NULL,
                 fecha DATE NOT NULL,
+                tipo_atencion TEXT NOT NULL,
                 nombre_animal TEXT NOT NULL,
                 especie TEXT NOT NULL,
                 sexo TEXT NOT NULL,
                 edad TEXT,
                 tutor_id INTEGER NOT NULL,
-                atencion_primaria INTEGER DEFAULT 0,
+                motivo TEXT,
+                diagnostico TEXT,
+                tratamiento TEXT,
+                derivacion TEXT,
+                estado TEXT DEFAULT 'completado',
                 observaciones TEXT,
                 FOREIGN KEY (tutor_id) REFERENCES tutores(id)
             )
@@ -62,9 +70,10 @@ class Database:
         conn.commit()
         conn.close()
     
-    def agregar_castracion(self, numero, fecha, nombre_animal, especie, sexo, edad,
-                          nombre_apellido, dni, direccion, barrio, telefono):
-        """Agrega una nueva castración a la base de datos"""
+    def agregar_atencion(self, numero, fecha, tipo_atencion, nombre_animal, especie, sexo, edad,
+                        nombre_apellido, dni, direccion, barrio, telefono, 
+                        motivo='', diagnostico='', tratamiento='', derivacion='', observaciones=''):
+        """Agrega una nueva atención (castración o atención primaria) a la base de datos"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
@@ -89,41 +98,55 @@ class Database:
                 ''', (nombre_apellido, dni, direccion, barrio, telefono))
                 tutor_id = cursor.lastrowid
             
-            # Agregar castración
+            # Agregar atención
             cursor.execute('''
-                INSERT INTO castraciones (numero, fecha, nombre_animal, especie, sexo, edad, tutor_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (numero, fecha, nombre_animal, especie, sexo, edad, tutor_id))
+                INSERT INTO atenciones (numero, fecha, tipo_atencion, nombre_animal, especie, sexo, edad, 
+                                       tutor_id, motivo, diagnostico, tratamiento, derivacion, observaciones)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (numero, fecha, tipo_atencion, nombre_animal, especie, sexo, edad, tutor_id,
+                  motivo, diagnostico, tratamiento, derivacion, observaciones))
             
             conn.commit()
-            return True, "Castración registrada exitosamente"
+            tipo_texto = "Castración" if tipo_atencion == "castracion" else "Atención primaria"
+            return True, f"{tipo_texto} registrada exitosamente"
         except sqlite3.IntegrityError as e:
             return False, f"Error: El número de registro ya existe"
         except Exception as e:
             return False, f"Error al registrar: {str(e)}"
         finally:
             conn.close()
+
+    # Mantener compatibilidad con código antiguo
+    def agregar_castracion(self, numero, fecha, nombre_animal, especie, sexo, edad,
+                          nombre_apellido, dni, direccion, barrio, telefono):
+        """Método legacy - redirige a agregar_atencion con tipo castración"""
+        return self.agregar_atencion(numero, fecha, 'castracion', nombre_animal, especie, sexo, edad,
+                                     nombre_apellido, dni, direccion, barrio, telefono)
     
-    def buscar_castraciones(self, filtros=None):
-        """Busca castraciones con filtros opcionales"""
+    def buscar_atenciones(self, filtros=None):
+        """Busca atenciones con filtros opcionales"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
         query = '''
-            SELECT c.numero, c.fecha, c.nombre_animal, c.especie, c.sexo, c.edad,
-                   t.nombre_apellido, t.dni, t.direccion, t.barrio, t.telefono
-            FROM castraciones c
-            JOIN tutores t ON c.tutor_id = t.id
+            SELECT a.id, a.numero, a.fecha, a.tipo_atencion, a.nombre_animal, a.especie, a.sexo, a.edad,
+                   t.nombre_apellido, t.dni, t.direccion, t.barrio, t.telefono,
+                   a.motivo, a.diagnostico, a.tratamiento, a.derivacion, a.observaciones
+            FROM atenciones a
+            JOIN tutores t ON a.tutor_id = t.id
             WHERE 1=1
         '''
         params = []
         
         if filtros:
             if filtros.get('numero'):
-                query += ' AND c.numero = ?'
+                query += ' AND a.numero = ?'
                 params.append(filtros['numero'])
+            if filtros.get('tipo_atencion'):
+                query += ' AND a.tipo_atencion = ?'
+                params.append(filtros['tipo_atencion'])
             if filtros.get('especie'):
-                query += ' AND c.especie LIKE ?'
+                query += ' AND a.especie LIKE ?'
                 params.append(f"%{filtros['especie']}%")
             if filtros.get('dni'):
                 query += ' AND t.dni LIKE ?'
@@ -131,20 +154,31 @@ class Database:
             if filtros.get('barrio'):
                 query += ' AND t.barrio LIKE ?'
                 params.append(f"%{filtros['barrio']}%")
+            if filtros.get('nombre_animal'):
+                query += ' AND a.nombre_animal LIKE ?'
+                params.append(f"%{filtros['nombre_animal']}%")
             if filtros.get('fecha_desde'):
-                query += ' AND c.fecha >= ?'
+                query += ' AND a.fecha >= ?'
                 params.append(filtros['fecha_desde'])
             if filtros.get('fecha_hasta'):
-                query += ' AND c.fecha <= ?'
+                query += ' AND a.fecha <= ?'
                 params.append(filtros['fecha_hasta'])
         
-        query += ' ORDER BY c.numero DESC'
+        query += ' ORDER BY a.numero DESC'
         
         cursor.execute(query, params)
         resultados = cursor.fetchall()
         conn.close()
         
         return resultados
+
+    # Mantener compatibilidad con código antiguo
+    def buscar_castraciones(self, filtros=None):
+        """Método legacy - busca solo castraciones"""
+        if filtros is None:
+            filtros = {}
+        filtros['tipo_atencion'] = 'castracion'
+        return self.buscar_atenciones(filtros)
     
     def obtener_estadisticas(self, fecha_desde=None, fecha_hasta=None):
         """Obtiene estadísticas con filtros de fecha opcionales"""
@@ -163,14 +197,24 @@ class Database:
             fecha_condicion += " AND fecha <= ?"
             fecha_params.append(fecha_hasta)
         
-        # Total de castraciones
-        cursor.execute(f'SELECT COUNT(*) FROM castraciones WHERE {fecha_condicion}', fecha_params)
+        # Total de atenciones
+        cursor.execute(f'SELECT COUNT(*) FROM atenciones WHERE {fecha_condicion}', fecha_params)
         stats['total'] = cursor.fetchone()[0]
+        
+        # Por tipo de atención
+        cursor.execute(f'''
+            SELECT tipo_atencion, COUNT(*) as cantidad
+            FROM atenciones
+            WHERE {fecha_condicion}
+            GROUP BY tipo_atencion
+            ORDER BY cantidad DESC
+        ''', fecha_params)
+        stats['por_tipo'] = cursor.fetchall()
         
         # Por especie
         cursor.execute(f'''
             SELECT especie, COUNT(*) as cantidad
-            FROM castraciones
+            FROM atenciones
             WHERE {fecha_condicion}
             GROUP BY especie
             ORDER BY cantidad DESC
@@ -180,16 +224,16 @@ class Database:
         # Por sexo
         cursor.execute(f'''
             SELECT sexo, COUNT(*) as cantidad
-            FROM castraciones
+            FROM atenciones
             WHERE {fecha_condicion}
             GROUP BY sexo
         ''', fecha_params)
         stats['por_sexo'] = cursor.fetchall()
         
-        # Por día (últimos 30 días o rango seleccionado)
+        # Por día
         cursor.execute(f'''
             SELECT DATE(fecha) as dia, COUNT(*) as cantidad
-            FROM castraciones
+            FROM atenciones
             WHERE {fecha_condicion}
             GROUP BY dia
             ORDER BY dia ASC
@@ -199,7 +243,7 @@ class Database:
         # Por semana
         cursor.execute(f'''
             SELECT strftime('%Y-W%W', fecha) as semana, COUNT(*) as cantidad
-            FROM castraciones
+            FROM atenciones
             WHERE {fecha_condicion}
             GROUP BY semana
             ORDER BY semana ASC
@@ -209,7 +253,7 @@ class Database:
         # Por mes
         cursor.execute(f'''
             SELECT strftime('%Y-%m', fecha) as mes, COUNT(*) as cantidad
-            FROM castraciones
+            FROM atenciones
             WHERE {fecha_condicion}
             GROUP BY mes
             ORDER BY mes ASC
@@ -219,8 +263,8 @@ class Database:
         # Por barrio
         cursor.execute(f'''
             SELECT t.barrio, COUNT(*) as cantidad
-            FROM castraciones c
-            JOIN tutores t ON c.tutor_id = t.id
+            FROM atenciones a
+            JOIN tutores t ON a.tutor_id = t.id
             WHERE t.barrio IS NOT NULL AND t.barrio != '' AND {fecha_condicion}
             GROUP BY t.barrio
             ORDER BY cantidad DESC
@@ -231,7 +275,7 @@ class Database:
         # Por año
         cursor.execute(f'''
             SELECT strftime('%Y', fecha) as anio, COUNT(*) as cantidad
-            FROM castraciones
+            FROM atenciones
             WHERE {fecha_condicion}
             GROUP BY anio
             ORDER BY anio DESC
@@ -241,7 +285,7 @@ class Database:
         # Totales por especie y sexo combinados
         cursor.execute(f'''
             SELECT especie, sexo, COUNT(*) as cantidad
-            FROM castraciones
+            FROM atenciones
             WHERE {fecha_condicion}
             GROUP BY especie, sexo
             ORDER BY especie, sexo
@@ -255,7 +299,7 @@ class Database:
         """Obtiene el siguiente número de registro disponible"""
         conn = self.get_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT MAX(numero) FROM castraciones')
+        cursor.execute('SELECT MAX(numero) FROM atenciones')
         max_num = cursor.fetchone()[0]
         conn.close()
         return (max_num or 0) + 1
@@ -363,49 +407,56 @@ class Database:
         
         stats = {}
         
-        # Castraciones de hoy
+        # Atenciones de hoy (total)
         cursor.execute('''
-            SELECT COUNT(*) FROM castraciones 
+            SELECT COUNT(*) FROM atenciones 
             WHERE DATE(fecha) = DATE('now')
         ''')
         stats['hoy'] = cursor.fetchone()[0]
         
-        # Castraciones de esta semana
+        # Atenciones de esta semana
         cursor.execute('''
-            SELECT COUNT(*) FROM castraciones 
+            SELECT COUNT(*) FROM atenciones 
             WHERE DATE(fecha) >= DATE('now', 'weekday 0', '-7 days')
         ''')
         stats['semana'] = cursor.fetchone()[0]
         
-        # Castraciones del mes
+        # Atenciones del mes
         cursor.execute('''
-            SELECT COUNT(*) FROM castraciones 
+            SELECT COUNT(*) FROM atenciones 
             WHERE strftime('%Y-%m', fecha) = strftime('%Y-%m', 'now')
         ''')
         stats['mes'] = cursor.fetchone()[0]
         
-        # Atención primaria vs recurrente hoy
+        # Atención primaria del día
         cursor.execute('''
-            SELECT 
-                SUM(CASE WHEN atencion_primaria = 1 THEN 1 ELSE 0 END) as primaria,
-                SUM(CASE WHEN atencion_primaria = 0 THEN 1 ELSE 0 END) as recurrente
-            FROM castraciones 
+            SELECT COUNT(*) FROM atenciones 
             WHERE DATE(fecha) = DATE('now')
+            AND tipo_atencion = 'atencion_primaria'
         ''')
-        row = cursor.fetchone()
-        stats['primaria_hoy'] = row[0] or 0
-        stats['recurrente_hoy'] = row[1] or 0
+        stats['primaria_hoy'] = cursor.fetchone()[0]
         
-        # Últimas 5 castraciones
+        # Últimas 5 atenciones
         cursor.execute('''
-            SELECT c.numero, c.fecha, c.nombre_animal, c.especie, 
-                   t.nombre_apellido, c.atencion_primaria
-            FROM castraciones c
-            JOIN tutores t ON c.tutor_id = t.id
-            ORDER BY c.fecha DESC, c.numero DESC
+            SELECT a.numero, a.fecha, a.tipo_atencion, a.nombre_animal, a.especie, 
+                   t.nombre_apellido
+            FROM atenciones a
+            JOIN tutores t ON a.tutor_id = t.id
+            ORDER BY a.fecha DESC, a.numero DESC
             LIMIT 5
         ''')
-        stats['ultimas'] = cursor.fetchall()
+        resultados = cursor.fetchall()
+        stats['ultimas'] = [
+            {
+                'numero': r[0],
+                'fecha': r[1],
+                'tipo_atencion': r[2],
+                'nombre_animal': r[3],
+                'especie': r[4],
+                'tutor': r[5]
+            }
+            for r in resultados
+        ]
         
         # Turnos de hoy
         cursor.execute('''
@@ -414,17 +465,40 @@ class Database:
             WHERE DATE(fecha) = DATE('now')
             ORDER BY hora
         ''')
-        stats['turnos_hoy'] = cursor.fetchall()
+        resultados = cursor.fetchall()
+        stats['turnos_hoy'] = [
+            {
+                'id': r[0],
+                'hora': r[1],
+                'nombre_animal': r[2],
+                'tutor_nombre': r[3],
+                'tipo': r[4],
+                'estado': r[5]
+            }
+            for r in resultados
+        ]
         
         # Turnos de esta semana
         cursor.execute('''
-            SELECT fecha, hora, nombre_animal, tutor_nombre, tipo, estado
+            SELECT fecha, hora, nombre_animal, tutor_nombre, tipo, estado, id
             FROM turnos
             WHERE DATE(fecha) >= DATE('now')
             AND DATE(fecha) <= DATE('now', '+7 days')
             ORDER BY fecha, hora
         ''')
-        stats['turnos_semana'] = cursor.fetchall()
+        resultados = cursor.fetchall()
+        stats['turnos_semana'] = [
+            {
+                'fecha': r[0],
+                'hora': r[1],
+                'nombre_animal': r[2],
+                'tutor_nombre': r[3],
+                'tipo': r[4],
+                'estado': r[5],
+                'id': r[6]
+            }
+            for r in resultados
+        ]
         
         conn.close()
         return stats
@@ -474,3 +548,73 @@ class Database:
             return False, f"Error: {str(e)}"
         finally:
             conn.close()
+
+    def exportar_a_excel(self, filename='atenciones_export.xlsx', filtros=None):
+        """Exporta todas las atenciones a un archivo Excel"""
+        try:
+            conn = self.get_connection()
+            
+            # Obtener datos de atenciones con información completa
+            query = '''
+                SELECT 
+                    a.numero AS 'Número',
+                    a.fecha AS 'Fecha',
+                    a.tipo_atencion AS 'Tipo de Atención',
+                    a.nombre_animal AS 'Nombre Animal',
+                    a.especie AS 'Especie',
+                    a.sexo AS 'Sexo',
+                    a.edad AS 'Edad',
+                    t.nombre_apellido AS 'Tutor',
+                    t.dni AS 'DNI',
+                    t.telefono AS 'Teléfono',
+                    t.direccion AS 'Dirección',
+                    t.barrio AS 'Barrio',
+                    a.motivo AS 'Motivo',
+                    a.diagnostico AS 'Diagnóstico',
+                    a.tratamiento AS 'Tratamiento',
+                    a.derivacion AS 'Derivación',
+                    a.estado AS 'Estado',
+                    a.observaciones AS 'Observaciones'
+                FROM atenciones a
+                JOIN tutores t ON a.tutor_id = t.id
+                ORDER BY a.numero DESC
+            '''
+            
+            # Leer datos en DataFrame
+            df = pd.read_sql_query(query, conn)
+            conn.close()
+            
+            # Crear archivo Excel con formato
+            with pd.ExcelWriter(filename, engine='openpyxl') as writer:
+                df.to_excel(writer, sheet_name='Atenciones', index=False)
+                
+                # Obtener el workbook y sheet para formatear
+                workbook = writer.book
+                worksheet = writer.sheets['Atenciones']
+                
+                # Formatear encabezados
+                header_fill = PatternFill(start_color='4472C4', end_color='4472C4', fill_type='solid')
+                header_font = Font(color='FFFFFF', bold=True)
+                
+                for cell in worksheet[1]:
+                    cell.fill = header_fill
+                    cell.font = header_font
+                    cell.alignment = Alignment(horizontal='center', vertical='center')
+                
+                # Ajustar anchos de columna
+                for column in worksheet.columns:
+                    max_length = 0
+                    column_letter = column[0].column_letter
+                    for cell in column:
+                        try:
+                            if len(str(cell.value)) > max_length:
+                                max_length = len(cell.value)
+                        except:
+                            pass
+                    adjusted_width = min(max_length + 2, 50)
+                    worksheet.column_dimensions[column_letter].width = adjusted_width
+                
+            return True, f"Datos exportados exitosamente a {filename}"
+            
+        except Exception as e:
+            return False, f"Error al exportar: {str(e)}"
