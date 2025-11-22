@@ -217,6 +217,7 @@ def buscar_castraciones():
     return jsonify(castraciones)
 
 @app.route('/api/estadisticas', methods=['GET'])
+@login_required
 def obtener_estadisticas():
     """Endpoint para obtener estadísticas con filtros opcionales"""
     fecha_desde = request.args.get('fecha_desde')
@@ -224,18 +225,46 @@ def obtener_estadisticas():
     
     stats = db.obtener_estadisticas(fecha_desde, fecha_hasta)
     
-    # Formatear estadísticas para JSON
+    # Formatear estadísticas para JSON (arrays para Chart.js)
     return jsonify({
         'total': stats['total'],
-        'por_especie': [{'especie': row[0], 'cantidad': row[1]} for row in stats['por_especie']],
-        'por_sexo': [{'sexo': row[0], 'cantidad': row[1]} for row in stats['por_sexo']],
-        'por_dia': [{'dia': row[0], 'cantidad': row[1]} for row in stats['por_dia']],
-        'por_semana': [{'semana': row[0], 'cantidad': row[1]} for row in stats['por_semana']],
-        'por_mes': [{'mes': row[0], 'cantidad': row[1]} for row in stats['por_mes']],
-        'por_barrio': [{'barrio': row[0], 'cantidad': row[1]} for row in stats['por_barrio']],
-        'por_anio': [{'anio': row[0], 'cantidad': row[1]} for row in stats['por_anio']],
-        'especie_sexo': [{'especie': row[0], 'sexo': row[1], 'cantidad': row[2]} for row in stats['especie_sexo']]
+        'por_tipo': stats.get('por_tipo', []),
+        'por_especie': stats['por_especie'],
+        'por_sexo': stats['por_sexo'],
+        'por_dia': stats['por_dia'],
+        'por_semana': stats['por_semana'],
+        'por_mes': stats['por_mes'],
+        'por_barrio': stats['por_barrio'],
+        'por_anio': stats['por_anio'],
+        'especie_sexo': stats['especie_sexo']
     })
+
+@app.route('/api/atenciones/<int:numero>', methods=['PUT'])
+@login_required
+def editar_atencion(numero):
+    """Endpoint para editar una atención existente"""
+    data = request.json
+    try:
+        exito, mensaje = db.editar_atencion(numero, data)
+        if exito:
+            return jsonify({'success': True, 'message': mensaje})
+        else:
+            return jsonify({'success': False, 'message': mensaje}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/atenciones/<int:numero>', methods=['DELETE'])
+@login_required
+def eliminar_atencion(numero):
+    """Endpoint para eliminar una atención"""
+    try:
+        exito, mensaje = db.eliminar_atencion(numero)
+        if exito:
+            return jsonify({'success': True, 'message': mensaje})
+        else:
+            return jsonify({'success': False, 'message': mensaje}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/api/siguiente-numero', methods=['GET'])
 def siguiente_numero():

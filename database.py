@@ -116,6 +116,55 @@ class Database:
         finally:
             conn.close()
 
+    def editar_atencion(self, numero, datos):
+        """Edita una atención existente"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            # Verificar que existe
+            cursor.execute('SELECT id FROM atenciones WHERE numero = ?', (numero,))
+            if not cursor.fetchone():
+                return False, "Registro no encontrado"
+            
+            # Actualizar datos
+            cursor.execute('''
+                UPDATE atenciones 
+                SET fecha = ?, nombre_animal = ?, especie = ?, sexo = ?, edad = ?,
+                    motivo = ?, diagnostico = ?, tratamiento = ?, derivacion = ?, observaciones = ?
+                WHERE numero = ?
+            ''', (datos.get('fecha'), datos.get('nombre_animal'), datos.get('especie'), 
+                  datos.get('sexo'), datos.get('edad'), datos.get('motivo', ''), 
+                  datos.get('diagnostico', ''), datos.get('tratamiento', ''), 
+                  datos.get('derivacion', ''), datos.get('observaciones', ''), numero))
+            
+            conn.commit()
+            return True, "Registro actualizado exitosamente"
+        except Exception as e:
+            return False, f"Error al editar: {str(e)}"
+        finally:
+            conn.close()
+    
+    def eliminar_atencion(self, numero):
+        """Elimina una atención"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            # Verificar que existe
+            cursor.execute('SELECT id FROM atenciones WHERE numero = ?', (numero,))
+            if not cursor.fetchone():
+                return False, "Registro no encontrado"
+            
+            # Eliminar
+            cursor.execute('DELETE FROM atenciones WHERE numero = ?', (numero,))
+            conn.commit()
+            return True, "Registro eliminado exitosamente"
+        except Exception as e:
+            return False, f"Error al eliminar: {str(e)}"
+        finally:
+            conn.close()
+
     # Mantener compatibilidad con código antiguo
     def agregar_castracion(self, numero, fecha, nombre_animal, especie, sexo, edad,
                           nombre_apellido, dni, direccion, barrio, telefono):

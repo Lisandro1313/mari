@@ -291,6 +291,35 @@ function limpiarFormulario() {
 }
 
 // ===== BÚSQUEDA =====
+async function editarRegistro(numero) {
+    if (!confirm('La función de edición estará disponible próximamente. Por ahora, puede eliminar y crear un nuevo registro.')) {
+        return;
+    }
+}
+
+async function eliminarRegistro(numero) {
+    if (!confirm(`¿Está seguro de eliminar el registro #${numero}? Esta acción no se puede deshacer.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/atenciones/${numero}`, {
+            method: 'DELETE'
+        });
+        const result = await response.json();
+
+        if (result.success) {
+            mostrarNotificacion('Registro eliminado exitosamente', 'success');
+            buscarAtenciones(); // Recargar resultados
+            cargarDashboard(); // Actualizar dashboard
+        } else {
+            mostrarNotificacion(result.message || 'Error al eliminar', 'error');
+        }
+    } catch (error) {
+        mostrarNotificacion('Error al eliminar el registro', 'error');
+    }
+}
+
 async function buscarAtenciones() {
     const filtros = {
         numero: document.getElementById('search-numero').value,
@@ -322,9 +351,13 @@ async function buscarAtenciones() {
             <div class="result-item">
                 <div class="result-header">
                     <span class="result-number">#${r.numero} - ${r.nombre_animal}</span>
-                    <span class="result-tipo ${r.tipo_atencion === 'castracion' ? 'tipo-castracion' : 'tipo-atencion-primaria'}">
-                        ${r.tipo_atencion === 'castracion' ? 'Castración' : 'Atención Primaria'}
-                    </span>
+                    <div>
+                        <span class="result-tipo ${r.tipo_atencion === 'castracion' ? 'tipo-castracion' : 'tipo-atencion-primaria'}">
+                            ${r.tipo_atencion === 'castracion' ? 'Castración' : 'Atención Primaria'}
+                        </span>
+                        <button class="btn-icon btn-edit" onclick="editarRegistro(${r.numero})" title="Editar" style="margin-left: 10px;">✎</button>
+                        <button class="btn-icon btn-delete" onclick="eliminarRegistro(${r.numero})" title="Eliminar">🗑</button>
+                    </div>
                 </div>
                 <div class="result-details">
                     <strong>Fecha:</strong> ${formatearFecha(r.fecha)} | 
