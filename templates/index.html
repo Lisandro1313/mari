@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MARI - Sistema de Registro de Castraciones</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <h1>🏥 MARI</h1>
+                <p class="subtitle">Sistema Municipal de Registro de Castraciones</p>
+            </div>
+        </header>
+
+        <nav class="tabs">
+            <button class="tab-button active" onclick="showTab('registro')">
+                <span class="tab-icon">📝</span>
+                <span>Nuevo Registro</span>
+            </button>
+            <button class="tab-button" onclick="showTab('busqueda')">
+                <span class="tab-icon">🔍</span>
+                <span>Búsqueda</span>
+            </button>
+            <button class="tab-button" onclick="showTab('estadisticas')">
+                <span class="tab-icon">📊</span>
+                <span>Estadísticas</span>
+            </button>
+        </nav>
+
+        <!-- TAB: REGISTRO -->
+        <div id="registro" class="tab-content active">
+            <div class="card">
+                <h2>Registrar Nueva Castración</h2>
+                <form id="formRegistro">
+                    <div class="section">
+                        <h3>📋 Datos del Animal</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="numero">N° Registro*</label>
+                                <input type="number" id="numero" name="numero" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="fecha">Fecha*</label>
+                                <input type="date" id="fecha" name="fecha" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="nombre_animal">Nombre del Animal*</label>
+                                <input type="text" id="nombre_animal" name="nombre_animal" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="especie">Especie*</label>
+                                <select id="especie" name="especie" required>
+                                    <option value="">Seleccionar...</option>
+                                    <option value="Canino">Canino</option>
+                                    <option value="Felino">Felino</option>
+                                    <option value="Otro">Otro</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="sexo">Sexo*</label>
+                                <select id="sexo" name="sexo" required>
+                                    <option value="">Seleccionar...</option>
+                                    <option value="Macho">Macho</option>
+                                    <option value="Hembra">Hembra</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="edad">Edad</label>
+                                <input type="text" id="edad" name="edad" placeholder="Ej: 2 años, 6 meses">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <h3>👤 Datos del Tutor</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="nombre_apellido">Nombre y Apellido*</label>
+                                <input type="text" id="nombre_apellido" name="nombre_apellido" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="dni">DNI*</label>
+                                <input type="text" id="dni" name="dni" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="direccion">Dirección</label>
+                                <input type="text" id="direccion" name="direccion">
+                            </div>
+                            <div class="form-group">
+                                <label for="barrio">Barrio</label>
+                                <input type="text" id="barrio" name="barrio">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="telefono">Teléfono</label>
+                            <input type="tel" id="telefono" name="telefono">
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Guardar Registro</button>
+                        <button type="button" class="btn btn-secondary" onclick="limpiarFormulario()">Limpiar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- TAB: BÚSQUEDA -->
+        <div id="busqueda" class="tab-content">
+            <div class="card">
+                <h2>Búsqueda de Registros</h2>
+                <form id="formBusqueda">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="busq_numero">N° Registro</label>
+                            <input type="number" id="busq_numero" name="numero">
+                        </div>
+                        <div class="form-group">
+                            <label for="busq_especie">Especie</label>
+                            <input type="text" id="busq_especie" name="especie">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="busq_dni">DNI Tutor</label>
+                            <input type="text" id="busq_dni" name="dni">
+                        </div>
+                        <div class="form-group">
+                            <label for="busq_barrio">Barrio</label>
+                            <input type="text" id="busq_barrio" name="barrio">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="busq_fecha_desde">Fecha Desde</label>
+                            <input type="date" id="busq_fecha_desde" name="fecha_desde">
+                        </div>
+                        <div class="form-group">
+                            <label for="busq_fecha_hasta">Fecha Hasta</label>
+                            <input type="date" id="busq_fecha_hasta" name="fecha_hasta">
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">🔍 Buscar</button>
+                        <button type="button" class="btn btn-secondary" onclick="limpiarBusqueda()">Limpiar</button>
+                    </div>
+                </form>
+
+                <div id="resultados" class="resultados"></div>
+            </div>
+        </div>
+
+        <!-- TAB: ESTADÍSTICAS -->
+        <div id="estadisticas" class="tab-content">
+            <div class="card">
+                <div class="stats-header">
+                    <h2>📊 Panel de Estadísticas</h2>
+                    <div class="stats-filters">
+                        <div class="filter-group">
+                            <label>Desde:</label>
+                            <input type="date" id="stats-fecha-desde">
+                        </div>
+                        <div class="filter-group">
+                            <label>Hasta:</label>
+                            <input type="date" id="stats-fecha-hasta">
+                        </div>
+                        <button class="btn btn-primary" onclick="cargarEstadisticas()">
+                            🔄 Actualizar
+                        </button>
+                        <button class="btn btn-secondary" onclick="limpiarFiltrosEstadisticas()">
+                            ✖ Limpiar
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Tarjetas de resumen -->
+                <div class="stats-summary">
+                    <div class="summary-card total">
+                        <div class="summary-icon">🐾</div>
+                        <div class="summary-content">
+                            <div class="summary-title">Total Castraciones</div>
+                            <div class="summary-value" id="stat-total">0</div>
+                        </div>
+                    </div>
+                    <div class="summary-card canino">
+                        <div class="summary-icon">🐕</div>
+                        <div class="summary-content">
+                            <div class="summary-title">Caninos</div>
+                            <div class="summary-value" id="stat-caninos">0</div>
+                        </div>
+                    </div>
+                    <div class="summary-card felino">
+                        <div class="summary-icon">🐈</div>
+                        <div class="summary-content">
+                            <div class="summary-title">Felinos</div>
+                            <div class="summary-value" id="stat-felinos">0</div>
+                        </div>
+                    </div>
+                    <div class="summary-card barrios">
+                        <div class="summary-icon">🏘️</div>
+                        <div class="summary-content">
+                            <div class="summary-title">Barrios Alcanzados</div>
+                            <div class="summary-value" id="stat-barrios">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Selector de vista temporal -->
+                <div class="time-selector">
+                    <button class="time-btn active" data-view="dia" onclick="cambiarVistaTime('dia')">Por Día</button>
+                    <button class="time-btn" data-view="semana" onclick="cambiarVistaTime('semana')">Por Semana</button>
+                    <button class="time-btn" data-view="mes" onclick="cambiarVistaTime('mes')">Por Mes</button>
+                    <button class="time-btn" data-view="anio" onclick="cambiarVistaTime('anio')">Por Año</button>
+                </div>
+
+                <!-- Gráfico temporal principal -->
+                <div class="chart-main">
+                    <canvas id="chartTemporal"></canvas>
+                </div>
+
+                <!-- Gráficos secundarios -->
+                <div class="charts-grid">
+                    <div class="chart-container">
+                        <h3>Distribución por Especie</h3>
+                        <canvas id="chartEspecie"></canvas>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <h3>Distribución por Sexo</h3>
+                        <canvas id="chartSexo"></canvas>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <h3>Especie y Sexo</h3>
+                        <canvas id="chartEspecieSexo"></canvas>
+                    </div>
+                    
+                    <div class="chart-container full-width">
+                        <h3>Top Barrios</h3>
+                        <canvas id="chartBarrios"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="notification" class="notification"></div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
