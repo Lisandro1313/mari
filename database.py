@@ -67,6 +67,13 @@ class Database:
             )
         ''')
         
+        # Crear índices para mejorar rendimiento
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_atenciones_fecha ON atenciones(fecha)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_atenciones_tipo ON atenciones(tipo_atencion)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_atenciones_numero ON atenciones(numero)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_tutores_dni ON tutores(dni)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_turnos_fecha ON turnos(fecha)')
+        
         conn.commit()
         conn.close()
     
@@ -108,10 +115,16 @@ class Database:
             
             conn.commit()
             tipo_texto = "Castración" if tipo_atencion == "castracion" else "Atención primaria"
-            return True, f"{tipo_texto} registrada exitosamente"
+            return True, f"{tipo_texto} registrada exitosamente (#{numero})"
         except sqlite3.IntegrityError as e:
-            return False, f"Error: El número de registro ya existe"
+            conn.rollback()
+            if "numero" in str(e).lower():
+                return False, f"El número {numero} ya existe en el sistema"
+            elif "dni" in str(e).lower():
+                return False, "Error al procesar los datos del tutor"
+            return False, f"Error de integridad: {str(e)}"
         except Exception as e:
+            conn.rollback()
             return False, f"Error al registrar: {str(e)}"
         finally:
             conn.close()

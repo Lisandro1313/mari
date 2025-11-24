@@ -55,6 +55,7 @@ def index():
     return render_template('index.html', usuario=session.get('usuario'))
 
 @app.route('/api/exportar', methods=['GET'])
+@login_required
 def exportar_excel():
     """Endpoint para exportar datos a Excel"""
     try:
@@ -72,9 +73,16 @@ def exportar_excel():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/api/atenciones', methods=['POST'])
+@login_required
 def agregar_atencion():
     """Endpoint para agregar una nueva atención (castración o atención primaria)"""
     data = request.json
+    
+    # Validar campos requeridos
+    campos_requeridos = ['numero', 'fecha', 'nombre_animal', 'especie', 'sexo', 'nombre_apellido', 'dni']
+    for campo in campos_requeridos:
+        if not data.get(campo):
+            return jsonify({'success': False, 'message': f'El campo {campo} es requerido'}), 400
     
     try:
         exito, mensaje = db.agregar_atencion(
@@ -105,6 +113,7 @@ def agregar_atencion():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/api/atenciones', methods=['GET'])
+@login_required
 def buscar_atenciones():
     """Endpoint para buscar atenciones"""
     filtros = {
