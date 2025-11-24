@@ -625,18 +625,18 @@ class Database:
                     a.nombre_animal AS 'Nombre Animal',
                     a.especie AS 'Especie',
                     a.sexo AS 'Sexo',
-                    a.edad AS 'Edad',
+                    COALESCE(a.edad, '') AS 'Edad',
                     t.nombre_apellido AS 'Tutor',
                     t.dni AS 'DNI',
-                    t.telefono AS 'Teléfono',
-                    t.direccion AS 'Dirección',
-                    t.barrio AS 'Barrio',
-                    a.motivo AS 'Motivo',
-                    a.diagnostico AS 'Diagnóstico',
-                    a.tratamiento AS 'Tratamiento',
-                    a.derivacion AS 'Derivación',
+                    COALESCE(t.telefono, '') AS 'Teléfono',
+                    COALESCE(t.direccion, '') AS 'Dirección',
+                    COALESCE(t.barrio, '') AS 'Barrio',
+                    COALESCE(a.motivo, '') AS 'Motivo',
+                    COALESCE(a.diagnostico, '') AS 'Diagnóstico',
+                    COALESCE(a.tratamiento, '') AS 'Tratamiento',
+                    COALESCE(a.derivacion, '') AS 'Derivación',
                     a.estado AS 'Estado',
-                    a.observaciones AS 'Observaciones'
+                    COALESCE(a.observaciones, '') AS 'Observaciones'
                 FROM atenciones a
                 JOIN tutores t ON a.tutor_id = t.id
                 ORDER BY a.numero DESC
