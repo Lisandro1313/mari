@@ -592,15 +592,6 @@ function renderChart(canvasId, type, data, title) {
     }
 
     // ===== TURNOS =====
-    function mostrarFormularioTurno() {
-        document.getElementById('modal-turno').classList.add('show');
-    }
-
-    function cerrarModalTurno() {
-        document.getElementById('modal-turno').classList.remove('show');
-        document.getElementById('form-turno').reset();
-    }
-
     async function guardarTurno(e) {
         e.preventDefault();
 
@@ -658,33 +649,6 @@ function renderChart(canvasId, type, data, title) {
         cargarDashboard();
     }
 
-    // ===== EXPORTAR EXCEL =====
-    async function exportarExcel() {
-        try {
-            mostrarNotificacion('Generando archivo Excel...', 'info');
-
-            const response = await fetch('/api/exportar');
-
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `atenciones_${new Date().toISOString().split('T')[0]}.xlsx`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-
-                mostrarNotificacion('Archivo descargado exitosamente', 'success');
-            } else {
-                mostrarNotificacion('Error al exportar datos', 'error');
-            }
-        } catch (error) {
-            mostrarNotificacion('Error al exportar datos', 'error');
-        }
-    }
-
     // ===== UTILIDADES =====
     function formatearFecha(fecha) {
         const [year, month, day] = fecha.split('-');
@@ -705,12 +669,6 @@ function renderChart(canvasId, type, data, title) {
         setTimeout(() => {
             notification.classList.remove('show');
         }, 4000);
-    }
-
-    function logout() {
-        if (confirm('¿Está seguro que desea cerrar sesión?')) {
-            window.location.href = '/logout';
-        }
     }
 
     // ===== AUDITORÍA =====
@@ -758,4 +716,46 @@ function renderChart(canvasId, type, data, title) {
             mostrarNotificacion('Error al cargar historial', 'error');
         }
     }
+}
 
+// ===== FUNCIONES GLOBALES PARA HTML onclick =====
+function mostrarFormularioTurno() {
+    document.getElementById('modal-turno').classList.add('show');
+}
+
+function cerrarModalTurno() {
+    document.getElementById('modal-turno').classList.remove('show');
+    document.getElementById('form-turno').reset();
+}
+
+function logout() {
+    if (confirm('¿Está seguro que desea cerrar sesión?')) {
+        window.location.href = '/logout';
+    }
+}
+
+async function exportarExcel() {
+    try {
+        mostrarNotificacion('Generando archivo Excel...', 'info');
+
+        const response = await fetch('/api/exportar');
+
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `atenciones_${new Date().toISOString().split('T')[0]}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            mostrarNotificacion('Archivo descargado exitosamente', 'success');
+        } else {
+            mostrarNotificacion('Error al exportar datos', 'error');
+        }
+    } catch (error) {
+        mostrarNotificacion('Error al exportar datos', 'error');
+    }
+}
