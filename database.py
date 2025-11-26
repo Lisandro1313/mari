@@ -67,12 +67,28 @@ class Database:
             )
         ''')
         
+        # Tabla de auditoría/log
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS auditoria (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                fecha_hora TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                tipo_operacion TEXT NOT NULL,
+                tabla TEXT NOT NULL,
+                registro_id INTEGER,
+                usuario TEXT,
+                datos_anteriores TEXT,
+                datos_nuevos TEXT,
+                descripcion TEXT
+            )
+        ''')
+        
         # Crear índices para mejorar rendimiento
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_atenciones_fecha ON atenciones(fecha)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_atenciones_tipo ON atenciones(tipo_atencion)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_atenciones_numero ON atenciones(numero)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_tutores_dni ON tutores(dni)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_turnos_fecha ON turnos(fecha)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_auditoria_fecha ON auditoria(fecha_hora)')
         
         conn.commit()
         conn.close()
@@ -129,16 +145,25 @@ class Database:
         finally:
             conn.close()
 
-    def editar_atencion(self, numero, datos):
-        """Edita una atención existente"""
+    def editar_atencion(self, numero, datos, usuario='mariateresa'):
+        """Edita una atención existente y registra cambios en auditoría"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
         try:
-            # Verificar que existe
-            cursor.execute('SELECT id FROM atenciones WHERE numero = ?', (numero,))
-            if not cursor.fetchone():
+            # Obtener datos anteriores para auditoría
+            cursor.execute('''
+                SELECT a.*, t.nombre_apellido, t.dni 
+                FROM atenciones a 
+                JOIN tutores t ON a.tutor_id = t.id 
+                WHERE a.numero = ?
+            ''', (numero,))
+            row_anterior = cursor.fetchone()
+            
+            if not row_anterior:
                 return False, "Registro no encontrado"
+            
+            datos_anteriores = f"#{row_anterior[1]} - {row_anterior[4]} ({row_anterior[5]}) - Tutor: {row_anterior[-2]}"
             
             # Actualizar datos
             cursor.execute('''
@@ -151,32 +176,90 @@ class Database:
                   datos.get('diagnostico', ''), datos.get('tratamiento', ''), 
                   datos.get('derivacion', ''), datos.get('observaciones', ''), numero))
             
+            # Registrar en auditoría
+            datos_nuevos = f"#{numero} - {datos.get('nombre_animal')} ({datos.get('especie')})"
+            self.registrar_auditoria(
+                'UPDATE', 'atenciones', row_anterior[0], usuario,
+                datos_anteriores=datos_anteriores,
+                datos_nuevos=datos_nuevos,
+                descripcion=f"Edición de atención #{numero}"
+            )
+            
             conn.commit()
-            return True, "Registro actualizado exitosamente"
+            return True, "Registro actualizado y cambios guardados en historial"
         except Exception as e:
+            conn.rollback()
             return False, f"Error al editar: {str(e)}"
         finally:
             conn.close()
     
-    def eliminar_atencion(self, numero):
-        """Elimina una atención"""
+    def registrar_auditoria(self, tipo_operacion, tabla, registro_id, usuario, datos_anteriores='', datos_nuevos='', descripcion=''):
+        """Registra una operación en la tabla de auditoría"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
         try:
-            # Verificar que existe
-            cursor.execute('SELECT id FROM atenciones WHERE numero = ?', (numero,))
-            if not cursor.fetchone():
+            cursor.execute('''
+                INSERT INTO auditoria (tipo_operacion, tabla, registro_id, usuario, datos_anteriores, datos_nuevos, descripcion)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (tipo_operacion, tabla, registro_id, usuario, datos_anteriores, datos_nuevos, descripcion))
+            conn.commit()
+        except Exception as e:
+            print(f"Error al registrar auditoría: {e}")
+        finally:
+            conn.close()
+    
+    def eliminar_atencion(self, numero, usuario='mariateresa'):
+        """Elimina una atención (soft delete - guarda en auditoría)"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            # Obtener datos antes de eliminar
+            cursor.execute('''
+                SELECT a.*, t.nombre_apellido, t.dni 
+                FROM atenciones a 
+                JOIN tutores t ON a.tutor_id = t.id 
+                WHERE a.numero = ?
+            ''', (numero,))
+            row = cursor.fetchone()
+            
+            if not row:
                 return False, "Registro no encontrado"
+            
+            # Guardar en auditoría
+            datos_anteriores = f"#{row[1]} - {row[4]} ({row[5]}) - Tutor: {row[-2]} (DNI: {row[-1]})"
+            self.registrar_auditoria(
+                'DELETE', 'atenciones', row[0], usuario, 
+                datos_anteriores=datos_anteriores,
+                descripcion=f"Eliminación de atención #{numero}"
+            )
             
             # Eliminar
             cursor.execute('DELETE FROM atenciones WHERE numero = ?', (numero,))
             conn.commit()
-            return True, "Registro eliminado exitosamente"
+            return True, "Registro eliminado y guardado en historial"
         except Exception as e:
             return False, f"Error al eliminar: {str(e)}"
         finally:
             conn.close()
+    
+    def obtener_auditoria(self, limite=100):
+        """Obtiene el historial de auditoría"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT id, fecha_hora, tipo_operacion, tabla, registro_id, usuario, 
+                   datos_anteriores, datos_nuevos, descripcion
+            FROM auditoria
+            ORDER BY fecha_hora DESC
+            LIMIT ?
+        ''', (limite,))
+        
+        resultados = cursor.fetchall()
+        conn.close()
+        return resultados
 
     # Mantener compatibilidad con código antiguo
     def agregar_castracion(self, numero, fecha, nombre_animal, especie, sexo, edad,

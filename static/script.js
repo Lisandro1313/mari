@@ -84,7 +84,8 @@ function showSection(sectionName) {
         registro: { title: 'Nueva Atención', subtitle: 'Registrar castración o atención primaria' },
         busqueda: { title: 'Búsqueda', subtitle: 'Consultar atenciones registradas' },
         estadisticas: { title: 'Estadísticas', subtitle: 'Análisis y reportes' },
-        turnos: { title: 'Agenda', subtitle: 'Gestión de turnos' }
+        turnos: { title: 'Agenda', subtitle: 'Gestión de turnos' },
+        auditoria: { title: 'Historial de Cambios', subtitle: 'Auditoría del sistema' }
     };
 
     document.getElementById('section-title').textContent = titles[sectionName].title;
@@ -94,6 +95,7 @@ function showSection(sectionName) {
     if (sectionName === 'dashboard') cargarDashboard();
     if (sectionName === 'estadisticas') cargarEstadisticas();
     if (sectionName === 'turnos') cargarTodosTurnos();
+    if (sectionName === 'auditoria') cargarAuditoria();
 }
 
 // ===== DASHBOARD =====
@@ -249,11 +251,24 @@ function setupFormHandlers() {
         };
 
         try {
-            const response = await fetch('/api/atenciones', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
+            let response;
+            const isEditing = window.editandoNumero !== undefined;
+
+            if (isEditing) {
+                // Modo edición - usar PUT
+                response = await fetch(`/api/atenciones/${window.editandoNumero}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+            } else {
+                // Modo crear nuevo - usar POST
+                response = await fetch('/api/atenciones', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+            }
 
             const result = await response.json();
 
@@ -261,7 +276,15 @@ function setupFormHandlers() {
                 mostrarNotificacion(result.message, 'success');
                 e.target.reset();
                 establecerFechaActual();
-                cargarSiguienteNumero();
+
+                // Limpiar modo edición
+                if (isEditing) {
+                    delete window.editandoNumero;
+                    cargarDashboard();
+                } else {
+                    cargarSiguienteNumero();
+                }
+
                 document.querySelectorAll('.tipo-option').forEach((opt, i) => {
                     if (i === 0) opt.classList.add('active');
                     else opt.classList.remove('active');
@@ -292,8 +315,54 @@ function limpiarFormulario() {
 
 // ===== BÚSQUEDA =====
 async function editarRegistro(numero) {
-    if (!confirm('La función de edición estará disponible próximamente. Por ahora, puede eliminar y crear un nuevo registro.')) {
-        return;
+    try {
+        // Obtener datos del registro
+        const response = await fetch(`/api/atenciones/${numero}`);
+        const data = await response.json();
+
+        if (!response.ok || !data.numero) {
+            mostrarNotificacion(data.message || 'Error al cargar el registro', 'error');
+            return;
+        }
+
+        // Llenar formulario con datos existentes
+        document.getElementById('numero').value = data.numero;
+        document.getElementById('fecha').value = data.fecha;
+        document.getElementById('tipo-atencion').value = data.tipo_atencion;
+        document.getElementById('nombre-animal').value = data.nombre_animal;
+        document.getElementById('especie').value = data.especie;
+        document.getElementById('sexo').value = data.sexo;
+        document.getElementById('edad').value = data.edad;
+        document.getElementById('nombre-apellido').value = data.tutor.nombre_apellido;
+        document.getElementById('dni').value = data.tutor.dni;
+        document.getElementById('direccion').value = data.tutor.direccion;
+        document.getElementById('barrio').value = data.tutor.barrio;
+        document.getElementById('telefono').value = data.tutor.telefono;
+        document.getElementById('motivo').value = data.motivo;
+        document.getElementById('diagnostico').value = data.diagnostico;
+        document.getElementById('tratamiento').value = data.tratamiento;
+        document.getElementById('derivacion').value = data.derivacion;
+        document.getElementById('observaciones').value = data.observaciones;
+
+        // Mostrar sección de atención primaria si corresponde
+        if (data.tipo_atencion === 'primaria') {
+            document.getElementById('section-atencion-primaria').style.display = 'block';
+            document.querySelectorAll('.tipo-option').forEach(opt => {
+                if (opt.dataset.tipo === 'primaria') opt.classList.add('active');
+                else opt.classList.remove('active');
+            });
+        }
+
+        // Cambiar a sección de registro
+        showSection('registro');
+
+        // Guardar número para edición
+        window.editandoNumero = numero;
+
+        mostrarNotificacion('Editando registro #' + numero, 'info');
+    } catch (error) {
+        console.error('Error:', error);
+        mostrarNotificacion('Error al cargar el registro', 'error');
     }
 }
 
@@ -405,196 +474,288 @@ async function cargarEstadisticas() {
 function renderizarGraficos(stats) {
     // Tipo de atención
     if (stats.por_tipo && stats.por_tipo.length > 0) {
+        const total = stats.por_tipo.reduce((sum, t) => sum + t[1], 0);
+        actualizarTextoMetrica('stats-tipo-texto', `Total de atenciones: ${total}`);
         renderChart('chart-tipo', 'doughnut', {
             labels: stats.por_tipo.map(t => t[0] === 'castracion' ? 'Castración' : 'Atención Primaria'),
             data: stats.por_tipo.map(t => t[1])
-        });
+        }, 'Tipo de Atención');
     }
 
     // Especie
     if (stats.por_especie && stats.por_especie.length > 0) {
+        const total = stats.por_especie.reduce((sum, e) => sum + e[1], 0);
+        const top = stats.por_especie[0];
+        actualizarTextoMetrica('stats-especie-texto', `Total: ${total} | Más frecuente: ${top[0]} (${top[1]})`);
         renderChart('chart-especie', 'pie', {
             labels: stats.por_especie.map(e => e[0]),
             data: stats.por_especie.map(e => e[1])
-        });
+        }, 'Por Especie');
     }
 
     // Sexo
     if (stats.por_sexo && stats.por_sexo.length > 0) {
+        const total = stats.por_sexo.reduce((sum, s) => sum + s[1], 0);
+        actualizarTextoMetrica('stats-sexo-texto', `Total: ${total}`);
         renderChart('chart-sexo', 'doughnut', {
             labels: stats.por_sexo.map(s => s[0]),
             data: stats.por_sexo.map(s => s[1])
-        });
+        }, 'Por Sexo');
     }
 
     // Temporal
     if (stats.por_mes && stats.por_mes.length > 0) {
+        const total = stats.por_mes.reduce((sum, m) => sum + m[1], 0);
+        const ultimos = stats.por_mes.length > 1 ? stats.por_mes[stats.por_mes.length - 1][1] : 0;
+        actualizarTextoMetrica('stats-temporal-texto', `Total: ${total} | Último mes: ${ultimos}`);
         renderChart('chart-temporal', 'line', {
             labels: stats.por_mes.map(m => formatearMes(m[0])),
             data: stats.por_mes.map(m => m[1])
-        });
+        }, 'Evolución Mensual');
     }
 
     // Barrios
     if (stats.por_barrio && stats.por_barrio.length > 0) {
+        const top10 = stats.por_barrio.slice(0, 10);
+        const total = stats.por_barrio.reduce((sum, b) => sum + b[1], 0);
+        const topBarrio = top10[0];
+        actualizarTextoMetrica('stats-barrio-texto', `Total: ${total} | Top: ${topBarrio[0]} (${topBarrio[1]})`);
         renderChart('chart-barrios', 'bar', {
-            labels: stats.por_barrio.slice(0, 10).map(b => b[0]),
-            data: stats.por_barrio.slice(0, 10).map(b => b[1])
-        });
+            labels: top10.map(b => b[0]),
+            data: top10.map(b => b[1])
+        }, 'Top 10 Barrios');
     }
 }
 
-function renderChart(canvasId, type, data) {
+function actualizarTextoMetrica(elementId, texto) {
+    const elem = document.getElementById(elementId);
+    if (elem) {
+        elem.textContent = texto;
+    }
+}
+
+function renderChart(canvasId, type, data, title) {
     const ctx = document.getElementById(canvasId);
     if (!ctx) return;
 
-    if (charts[canvasId]) {
-        charts[canvasId].destroy();
-    }
+    function renderChart(canvasId, type, data, title) {
+        const ctx = document.getElementById(canvasId);
+        if (!ctx) return;
 
-    charts[canvasId] = new Chart(ctx, {
-        type: type,
-        data: {
-            labels: data.labels,
-            datasets: [{
-                data: data.data,
-                backgroundColor: [
-                    '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#3b82f6',
-                    '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#06b6d4'
-                ]
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    position: 'bottom'
+        if (charts[canvasId]) {
+            charts[canvasId].destroy();
+        }
+
+        charts[canvasId] = new Chart(ctx, {
+            type: type,
+            data: {
+                labels: data.labels,
+                datasets: [{
+                    label: title || '',
+                    data: data.data,
+                    backgroundColor: [
+                        '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#3b82f6',
+                        '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#06b6d4'
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 10,
+                            font: {
+                                size: 12
+                            }
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: title || '',
+                        font: {
+                            size: 16,
+                            weight: 'bold'
+                        },
+                        padding: {
+                            top: 10,
+                            bottom: 20
+                        }
+                    }
                 }
             }
-        }
-    });
-}
-
-// ===== TURNOS =====
-function mostrarFormularioTurno() {
-    document.getElementById('modal-turno').classList.add('show');
-}
-
-function cerrarModalTurno() {
-    document.getElementById('modal-turno').classList.remove('show');
-    document.getElementById('form-turno').reset();
-}
-
-async function guardarTurno(e) {
-    e.preventDefault();
-
-    const formData = new FormData(e.target);
-    const turno = {
-        fecha: formData.get('fecha'),
-        hora: formData.get('hora'),
-        nombre_animal: formData.get('nombre_animal'),
-        tutor_nombre: formData.get('tutor_nombre'),
-        telefono: formData.get('telefono'),
-        tipo: formData.get('tipo'),
-        observaciones: formData.get('observaciones')
-    };
-
-    try {
-        const response = await fetch('/api/turnos', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(turno)
         });
+    }
 
-        if (response.ok) {
-            mostrarNotificacion('Turno creado exitosamente', 'success');
-            cerrarModalTurno();
-            cargarDashboard();
-        } else {
+    // ===== TURNOS =====
+    function mostrarFormularioTurno() {
+        document.getElementById('modal-turno').classList.add('show');
+    }
+
+    function cerrarModalTurno() {
+        document.getElementById('modal-turno').classList.remove('show');
+        document.getElementById('form-turno').reset();
+    }
+
+    async function guardarTurno(e) {
+        e.preventDefault();
+
+        const formData = new FormData(e.target);
+        const turno = {
+            fecha: formData.get('fecha'),
+            hora: formData.get('hora'),
+            nombre_animal: formData.get('nombre_animal'),
+            tutor_nombre: formData.get('tutor_nombre'),
+            telefono: formData.get('telefono'),
+            tipo: formData.get('tipo'),
+            observaciones: formData.get('observaciones')
+        };
+
+        try {
+            const response = await fetch('/api/turnos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(turno)
+            });
+
+            if (response.ok) {
+                mostrarNotificacion('Turno creado exitosamente', 'success');
+                cerrarModalTurno();
+                cargarDashboard();
+            } else {
+                mostrarNotificacion('Error al crear turno', 'error');
+            }
+        } catch (error) {
             mostrarNotificacion('Error al crear turno', 'error');
         }
-    } catch (error) {
-        mostrarNotificacion('Error al crear turno', 'error');
     }
-}
 
-async function actualizarEstadoTurno(id, estado) {
-    try {
-        const response = await fetch(`/api/turnos/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ estado })
-        });
+    async function actualizarEstadoTurno(id, estado) {
+        try {
+            const response = await fetch(`/api/turnos/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ estado })
+            });
 
-        if (response.ok) {
-            mostrarNotificacion(`Turno ${estado}`, 'success');
-            cargarDashboard();
-        } else {
+            if (response.ok) {
+                mostrarNotificacion(`Turno ${estado}`, 'success');
+                cargarDashboard();
+            } else {
+                mostrarNotificacion('Error al actualizar turno', 'error');
+            }
+        } catch (error) {
             mostrarNotificacion('Error al actualizar turno', 'error');
         }
-    } catch (error) {
-        mostrarNotificacion('Error al actualizar turno', 'error');
     }
-}
 
-async function cargarTodosTurnos() {
-    // Implementar carga de todos los turnos si es necesario
-    cargarDashboard();
-}
+    async function cargarTodosTurnos() {
+        // Implementar carga de todos los turnos si es necesario
+        cargarDashboard();
+    }
 
-// ===== EXPORTAR EXCEL =====
-async function exportarExcel() {
-    try {
-        mostrarNotificacion('Generando archivo Excel...', 'info');
+    // ===== EXPORTAR EXCEL =====
+    async function exportarExcel() {
+        try {
+            mostrarNotificacion('Generando archivo Excel...', 'info');
 
-        const response = await fetch('/api/exportar');
+            const response = await fetch('/api/exportar');
 
-        if (response.ok) {
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `atenciones_${new Date().toISOString().split('T')[0]}.xlsx`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `atenciones_${new Date().toISOString().split('T')[0]}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
 
-            mostrarNotificacion('Archivo descargado exitosamente', 'success');
-        } else {
+                mostrarNotificacion('Archivo descargado exitosamente', 'success');
+            } else {
+                mostrarNotificacion('Error al exportar datos', 'error');
+            }
+        } catch (error) {
             mostrarNotificacion('Error al exportar datos', 'error');
         }
-    } catch (error) {
-        mostrarNotificacion('Error al exportar datos', 'error');
     }
-}
 
-// ===== UTILIDADES =====
-function formatearFecha(fecha) {
-    const [year, month, day] = fecha.split('-');
-    return `${day}/${month}/${year}`;
-}
-
-function formatearMes(mes) {
-    const [year, month] = mes.split('-');
-    const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-    return `${meses[parseInt(month) - 1]} ${year}`;
-}
-
-function mostrarNotificacion(mensaje, tipo = 'info') {
-    const notification = document.getElementById('notification');
-    notification.textContent = mensaje;
-    notification.className = `notification ${tipo} show`;
-
-    setTimeout(() => {
-        notification.classList.remove('show');
-    }, 4000);
-}
-
-function logout() {
-    if (confirm('¿Está seguro que desea cerrar sesión?')) {
-        window.location.href = '/logout';
+    // ===== UTILIDADES =====
+    function formatearFecha(fecha) {
+        const [year, month, day] = fecha.split('-');
+        return `${day}/${month}/${year}`;
     }
-}
+
+    function formatearMes(mes) {
+        const [year, month] = mes.split('-');
+        const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+        return `${meses[parseInt(month) - 1]} ${year}`;
+    }
+
+    function mostrarNotificacion(mensaje, tipo = 'info') {
+        const notification = document.getElementById('notification');
+        notification.textContent = mensaje;
+        notification.className = `notification ${tipo} show`;
+
+        setTimeout(() => {
+            notification.classList.remove('show');
+        }, 4000);
+    }
+
+    function logout() {
+        if (confirm('¿Está seguro que desea cerrar sesión?')) {
+            window.location.href = '/logout';
+        }
+    }
+
+    // ===== AUDITORÍA =====
+    async function cargarAuditoria() {
+        try {
+            const response = await fetch('/api/auditoria');
+            const logs = await response.json();
+
+            const container = document.getElementById('tabla-auditoria');
+
+            if (!logs || logs.length === 0) {
+                container.innerHTML = '<p class="info-text">No hay registros de auditoría.</p>';
+                return;
+            }
+
+            let html = '<table class="audit-table"><thead><tr>';
+            html += '<th>Fecha/Hora</th>';
+            html += '<th>Operación</th>';
+            html += '<th>Usuario</th>';
+            html += '<th>Detalles</th>';
+            html += '</tr></thead><tbody>';
+
+            logs.forEach(log => {
+                const fecha = new Date(log.fecha_hora).toLocaleString('es-AR');
+                const tipo = log.tipo_operacion;
+                const badgeClass = tipo === 'DELETE' ? 'delete' : 'update';
+                const tipoTexto = tipo === 'DELETE' ? '🗑️ Eliminación' : '✏️ Edición';
+
+                html += '<tr>';
+                html += `<td>${fecha}</td>`;
+                html += `<td><span class="audit-badge ${badgeClass}">${tipoTexto}</span></td>`;
+                html += `<td>${log.usuario}</td>`;
+                html += `<td><div style="max-width: 400px; overflow: hidden; text-overflow: ellipsis;">${log.descripcion || ''}<br>`;
+                html += `<small style="color: #6b7280;">Anterior: ${log.datos_anteriores || 'N/A'}</small>`;
+                if (log.datos_nuevos) {
+                    html += `<br><small style="color: #059669;">Nuevo: ${log.datos_nuevos}</small>`;
+                }
+                html += '</div></td>';
+                html += '</tr>';
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        } catch (error) {
+            mostrarNotificacion('Error al cargar historial', 'error');
+        }
+    }
 

@@ -248,6 +248,44 @@ def obtener_estadisticas():
         'especie_sexo': stats['especie_sexo']
     })
 
+@app.route('/api/atenciones/<int:numero>', methods=['GET'])
+@login_required
+def obtener_atencion(numero):
+    """Endpoint para obtener una atención específica por número"""
+    try:
+        filtros = {'numero': numero}
+        resultados = db.buscar_atenciones(filtros)
+        
+        if not resultados:
+            return jsonify({'success': False, 'message': 'Registro no encontrado'}), 404
+        
+        row = resultados[0]
+        atencion = {
+            'id': row[0],
+            'numero': row[1],
+            'fecha': row[2],
+            'tipo_atencion': row[3],
+            'nombre_animal': row[4],
+            'especie': row[5],
+            'sexo': row[6],
+            'edad': row[7],
+            'tutor': {
+                'nombre_apellido': row[8],
+                'dni': row[9],
+                'direccion': row[10],
+                'barrio': row[11],
+                'telefono': row[12]
+            },
+            'motivo': row[13] or '',
+            'diagnostico': row[14] or '',
+            'tratamiento': row[15] or '',
+            'derivacion': row[16] or '',
+            'observaciones': row[17] or ''
+        }
+        return jsonify(atencion)
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @app.route('/api/atenciones/<int:numero>', methods=['PUT'])
 @login_required
 def editar_atencion(numero):
@@ -380,6 +418,32 @@ def eliminar_turno(turno_id):
         return jsonify({'success': True, 'message': mensaje})
     else:
         return jsonify({'success': False, 'message': mensaje}), 404
+
+@app.route('/api/auditoria', methods=['GET'])
+@login_required
+def obtener_auditoria():
+    """Endpoint para obtener logs de auditoría"""
+    try:
+        logs = db.obtener_auditoria(100)  # Últimos 100 registros
+        
+        # Convertir a formato JSON
+        resultado = []
+        for log in logs:
+            resultado.append({
+                'id': log[0],
+                'fecha_hora': log[1],
+                'tipo_operacion': log[2],
+                'tabla': log[3],
+                'registro_id': log[4],
+                'usuario': log[5],
+                'datos_anteriores': log[6],
+                'datos_nuevos': log[7],
+                'descripcion': log[8]
+            })
+        
+        return jsonify(resultado)
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 if __name__ == '__main__':
     print("=" * 60)

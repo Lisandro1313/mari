@@ -163,6 +163,66 @@ body {
     font-weight: 600;
 }
 
+/* Stats summary text */
+.stats-summary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.9em;
+    font-weight: 500;
+    margin: 10px 0;
+    text-align: center;
+}
+
+/* Audit table */
+.audit-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+.audit-table th,
+.audit-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.audit-table th {
+    background: #f9fafb;
+    font-weight: 600;
+    color: #374151;
+}
+
+.audit-table tr:hover {
+    background: #f9fafb;
+}
+
+.audit-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    font-weight: 500;
+}
+
+.audit-badge.delete {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.audit-badge.update {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.info-text {
+    color: #6b7280;
+    font-size: 0.9em;
+    margin-bottom: 15px;
+}
+
 /* MAIN CONTENT */
 .main-content {
     margin-left: var(--sidebar-width);

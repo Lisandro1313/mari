@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Veterinaria Municipal - Sistema de Atención Veterinaria</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=2.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=2.1">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -35,6 +35,10 @@
             <a href="#" class="nav-item" data-section="turnos">
                 <span class="nav-icon">📅</span>
                 <span>Agenda</span>
+            </a>
+            <a href="#" class="nav-item" data-section="auditoria">
+                <span class="nav-icon">📋</span>
+                <span>Historial</span>
             </a>
         </nav>
 
@@ -321,22 +325,27 @@
             <div class="stats-grid">
                 <div class="stat-card">
                     <h4>Por Tipo de Atención</h4>
+                    <p id="stats-tipo-texto" class="stats-summary"></p>
                     <canvas id="chart-tipo"></canvas>
                 </div>
                 <div class="stat-card">
                     <h4>Por Especie</h4>
+                    <p id="stats-especie-texto" class="stats-summary"></p>
                     <canvas id="chart-especie"></canvas>
                 </div>
                 <div class="stat-card">
                     <h4>Por Sexo</h4>
+                    <p id="stats-sexo-texto" class="stats-summary"></p>
                     <canvas id="chart-sexo"></canvas>
                 </div>
                 <div class="stat-card full-width">
                     <h4>Tendencia Mensual</h4>
+                    <p id="stats-temporal-texto" class="stats-summary"></p>
                     <canvas id="chart-temporal"></canvas>
                 </div>
                 <div class="stat-card full-width">
                     <h4>Top 10 Barrios</h4>
+                    <p id="stats-barrio-texto" class="stats-summary"></p>
                     <canvas id="chart-barrios"></canvas>
                 </div>
             </div>
@@ -351,6 +360,22 @@
                 </div>
                 <div class="card-body" id="lista-turnos">
                     <div class="loading-spinner"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- AUDITORIA SECTION -->
+        <section id="auditoria" class="content-section">
+            <div class="auditoria-card">
+                <div class="card-header">
+                    <h3>📋 Historial de Cambios (Auditoría)</h3>
+                    <button onclick="cargarAuditoria()" class="btn btn-primary">🔄 Actualizar</button>
+                </div>
+                <div class="card-body">
+                    <p class="info-text">Registro completo de todas las eliminaciones y modificaciones realizadas en el sistema.</p>
+                    <div id="tabla-auditoria">
+                        <div class="loading-spinner"></div>
+                    </div>
                 </div>
             </div>
         </section>
@@ -410,6 +435,6 @@
     <!-- NOTIFICATION -->
     <div id="notification" class="notification"></div>
 
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script src="{{ url_for('static', filename='script.js') }}?v=2.2"></script>
 </body>
 </html>
