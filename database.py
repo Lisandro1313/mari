@@ -419,10 +419,10 @@ class Database:
         fecha_condicion = "1=1"
         fecha_params = []
         if fecha_desde:
-            fecha_condicion += " AND fecha >= %s"
+            fecha_condicion += " AND fecha >= ?"
             fecha_params.append(fecha_desde)
         if fecha_hasta:
-            fecha_condicion += " AND fecha <= %s"
+            fecha_condicion += " AND fecha <= ?"
             fecha_params.append(fecha_hasta)
         
         # Total de atenciones
