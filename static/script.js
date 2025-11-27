@@ -570,83 +570,79 @@ function renderChart(canvasId, type, data, title) {
     const ctx = document.getElementById(canvasId);
     if (!ctx) return;
 
-    function renderChart(canvasId, type, data, title) {
-        const ctx = document.getElementById(canvasId);
-        if (!ctx) return;
+    if (charts[canvasId]) {
+        charts[canvasId].destroy();
+    }
 
-        if (charts[canvasId]) {
-            charts[canvasId].destroy();
-        }
-
-        charts[canvasId] = new Chart(ctx, {
-            type: type,
-            data: {
-                labels: data.labels,
-                datasets: [{
-                    label: title || '',
-                    data: data.data,
-                    backgroundColor: [
-                        '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#3b82f6',
-                        '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#06b6d4'
-                    ],
-                    borderWidth: 2,
-                    borderColor: '#fff'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            padding: 10,
-                            font: {
-                                size: 12
-                            }
-                        }
-                    },
-                    title: {
-                        display: true,
-                        text: title || '',
+    charts[canvasId] = new Chart(ctx, {
+        type: type,
+        data: {
+            labels: data.labels,
+            datasets: [{
+                label: title || '',
+                data: data.data,
+                backgroundColor: [
+                    '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#3b82f6',
+                    '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#06b6d4'
+                ],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 10,
                         font: {
-                            size: 16,
-                            weight: 'bold'
-                        },
-                        padding: {
-                            top: 10,
-                            bottom: 20
+                            size: 12
                         }
+                    }
+                },
+                title: {
+                    display: true,
+                    text: title || '',
+                    font: {
+                        size: 16,
+                        weight: 'bold'
+                    },
+                    padding: {
+                        top: 10,
+                        bottom: 20
                     }
                 }
             }
-        });
-    }
+        }
+    });
+}
 
-    // ===== UTILIDADES =====
-    function formatearFecha(fecha) {
-        const [year, month, day] = fecha.split('-');
-        return `${day}/${month}/${year}`;
-    }
+// ===== UTILIDADES =====
+function formatearFecha(fecha) {
+    const [year, month, day] = fecha.split('-');
+    return `${day}/${month}/${year}`;
+}
 
-    function formatearMes(mes) {
-        const [year, month] = mes.split('-');
-        const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-        return `${meses[parseInt(month) - 1]} ${year}`;
-    }
+function formatearMes(mes) {
+    const [year, month] = mes.split('-');
+    const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    return `${meses[parseInt(month) - 1]} ${year}`;
+}
 
-    function mostrarNotificacion(mensaje, tipo = 'info') {
-        const notification = document.getElementById('notification');
-        notification.textContent = mensaje;
-        notification.className = `notification ${tipo} show`;
+function mostrarNotificacion(mensaje, tipo = 'info') {
+    const notification = document.getElementById('notification');
+    notification.textContent = mensaje;
+    notification.className = `notification ${tipo} show`;
 
-        setTimeout(() => {
-            notification.classList.remove('show');
-        }, 4000);
-    }
+    setTimeout(() => {
+        notification.classList.remove('show');
+    }, 4000);
+}
 
-    // ===== AUDITORÍA =====
-    async function cargarAuditoria() {
+// ===== AUDITORÍA =====
+async function cargarAuditoria() {
         try {
             const response = await fetch('/api/auditoria');
             const logs = await response.json();
@@ -689,10 +685,13 @@ function renderChart(canvasId, type, data, title) {
         } catch (error) {
             mostrarNotificacion('Error al cargar historial', 'error');
         }
-    }
 }
 
 // ===== FUNCIONES GLOBALES PARA HTML onclick =====
+function cargarTodosTurnos() {
+    cargarDashboard();
+}
+
 function mostrarFormularioTurno() {
     document.getElementById('modal-turno').classList.add('show');
 }
