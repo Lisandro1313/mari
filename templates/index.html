@@ -183,11 +183,11 @@
                             </div>
                             <div class="form-group">
                                 <label>Nombre del Animal*</label>
-                                <input type="text" name="nombre_animal" required>
+                                <input type="text" name="nombre_animal" id="nombre-animal" required>
                             </div>
                             <div class="form-group">
                                 <label>Especie*</label>
-                                <select name="especie" required>
+                                <select name="especie" id="especie" required>
                                     <option value="">Seleccione...</option>
                                     <option value="Canino">Canino</option>
                                     <option value="Felino">Felino</option>
@@ -196,7 +196,7 @@
                             </div>
                             <div class="form-group">
                                 <label>Sexo*</label>
-                                <select name="sexo" required>
+                                <select name="sexo" id="sexo" required>
                                     <option value="">Seleccione...</option>
                                     <option value="Macho">Macho</option>
                                     <option value="Hembra">Hembra</option>
@@ -204,7 +204,7 @@
                             </div>
                             <div class="form-group">
                                 <label>Edad Aproximada</label>
-                                <input type="text" name="edad" placeholder="Ej: 2 años, 6 meses">
+                                <input type="text" name="edad" id="edad" placeholder="Ej: 2 años, 6 meses">
                             </div>
                         </div>
                     </div>
@@ -214,23 +214,23 @@
                         <div class="form-grid">
                             <div class="form-group">
                                 <label>Nombre y Apellido*</label>
-                                <input type="text" name="nombre_apellido" required>
+                                <input type="text" name="nombre_apellido" id="nombre-apellido" required>
                             </div>
                             <div class="form-group">
                                 <label>DNI*</label>
-                                <input type="text" name="dni" required>
+                                <input type="text" name="dni" id="dni" required>
                             </div>
                             <div class="form-group">
                                 <label>Teléfono</label>
-                                <input type="text" name="telefono" placeholder="3446-XXXXXX">
+                                <input type="text" name="telefono" id="telefono" placeholder="3446-XXXXXX">
                             </div>
                             <div class="form-group">
                                 <label>Dirección</label>
-                                <input type="text" name="direccion" placeholder="Calle y número">
+                                <input type="text" name="direccion" id="direccion" placeholder="Calle y número">
                             </div>
                             <div class="form-group">
                                 <label>Barrio</label>
-                                <input type="text" name="barrio" list="barrios-list">
+                                <input type="text" name="barrio" id="barrio" list="barrios-list">
                                 <datalist id="barrios-list">
                                     <option value="Centro">
                                     <option value="Pueblo Nuevo">
@@ -250,19 +250,19 @@
                         <div class="form-grid">
                             <div class="form-group full-width">
                                 <label>Motivo de Consulta*</label>
-                                <textarea name="motivo" rows="2" placeholder="Ej: Retiro de puntos, Control post-operatorio, Consulta general"></textarea>
+                                <textarea name="motivo" id="motivo" rows="2" placeholder="Ej: Retiro de puntos, Control post-operatorio, Consulta general"></textarea>
                             </div>
                             <div class="form-group full-width">
                                 <label>Diagnóstico</label>
-                                <textarea name="diagnostico" rows="2" placeholder="Diagnóstico o evaluación del veterinario"></textarea>
+                                <textarea name="diagnostico" id="diagnostico" rows="2" placeholder="Diagnóstico o evaluación del veterinario"></textarea>
                             </div>
                             <div class="form-group full-width">
                                 <label>Tratamiento Aplicado</label>
-                                <textarea name="tratamiento" rows="2" placeholder="Medicación, procedimientos realizados"></textarea>
+                                <textarea name="tratamiento" id="tratamiento" rows="2" placeholder="Medicación, procedimientos realizados"></textarea>
                             </div>
                             <div class="form-group full-width">
                                 <label>Derivación</label>
-                                <input type="text" name="derivacion" placeholder="Hospital, especialista, etc. (si aplica)">
+                                <input type="text" name="derivacion" id="derivacion" placeholder="Hospital, especialista, etc. (si aplica)">
                             </div>
                         </div>
                     </div>
@@ -270,7 +270,7 @@
                     <div class="form-section">
                         <h4>Observaciones Adicionales</h4>
                         <div class="form-group">
-                            <textarea name="observaciones" rows="3" placeholder="Cualquier información adicional relevante"></textarea>
+                            <textarea name="observaciones" id="observaciones" rows="3" placeholder="Cualquier información adicional relevante"></textarea>
                         </div>
                     </div>
 
@@ -436,6 +436,6 @@
     <!-- NOTIFICATION -->
     <div id="notification" class="notification"></div>
 
-    <script src="{{ url_for('static', filename='script.js') }}?v=2.7"></script>
+        <script src="{{ url_for('static', filename='script.js') }}?v=2.8"></script>
 </body>
 </html>
