@@ -299,7 +299,39 @@ function setupFormHandlers() {
     });
 
     // Form turnos
-    document.getElementById('form-turno').addEventListener('submit', guardarTurno);
+    document.getElementById('form-turno').addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        const formData = new FormData(e.target);
+        const turno = {
+            fecha: formData.get('fecha'),
+            hora: formData.get('hora'),
+            nombre_animal: formData.get('nombre_animal'),
+            tutor_nombre: formData.get('tutor_nombre'),
+            telefono: formData.get('telefono'),
+            tipo: formData.get('tipo'),
+            observaciones: formData.get('observaciones')
+        };
+
+        fetch('/api/turnos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(turno)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                mostrarNotificacion('Turno creado exitosamente', 'success');
+                cerrarModalTurno();
+                cargarDashboard();
+            } else {
+                mostrarNotificacion('Error al crear turno', 'error');
+            }
+        })
+        .catch(error => {
+            mostrarNotificacion('Error al crear turno', 'error');
+        });
+    });
 }
 
 function limpiarFormulario() {
@@ -589,64 +621,6 @@ function renderChart(canvasId, type, data, title) {
                 }
             }
         });
-    }
-
-    // ===== TURNOS =====
-    async function guardarTurno(e) {
-        e.preventDefault();
-
-        const formData = new FormData(e.target);
-        const turno = {
-            fecha: formData.get('fecha'),
-            hora: formData.get('hora'),
-            nombre_animal: formData.get('nombre_animal'),
-            tutor_nombre: formData.get('tutor_nombre'),
-            telefono: formData.get('telefono'),
-            tipo: formData.get('tipo'),
-            observaciones: formData.get('observaciones')
-        };
-
-        try {
-            const response = await fetch('/api/turnos', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(turno)
-            });
-
-            if (response.ok) {
-                mostrarNotificacion('Turno creado exitosamente', 'success');
-                cerrarModalTurno();
-                cargarDashboard();
-            } else {
-                mostrarNotificacion('Error al crear turno', 'error');
-            }
-        } catch (error) {
-            mostrarNotificacion('Error al crear turno', 'error');
-        }
-    }
-
-    async function actualizarEstadoTurno(id, estado) {
-        try {
-            const response = await fetch(`/api/turnos/${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ estado })
-            });
-
-            if (response.ok) {
-                mostrarNotificacion(`Turno ${estado}`, 'success');
-                cargarDashboard();
-            } else {
-                mostrarNotificacion('Error al actualizar turno', 'error');
-            }
-        } catch (error) {
-            mostrarNotificacion('Error al actualizar turno', 'error');
-        }
-    }
-
-    async function cargarTodosTurnos() {
-        // Implementar carga de todos los turnos si es necesario
-        cargarDashboard();
     }
 
     // ===== UTILIDADES =====
