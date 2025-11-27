@@ -9,8 +9,18 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
+    <!-- BOTÓN HAMBURGUESA MÓVIL -->
+    <button class="menu-toggle" onclick="toggleMenu()" aria-label="Abrir menú">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <!-- OVERLAY PARA CERRAR MENÚ -->
+    <div class="menu-overlay" onclick="toggleMenu()"></div>
+
     <!-- SIDEBAR -->
-    <div class="sidebar">
+    <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <h1>🏥 Veterinaria Municipal</h1>
             <p>Gualeguaychú, ER</p>

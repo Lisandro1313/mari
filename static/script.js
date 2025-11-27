@@ -2,6 +2,17 @@
 let charts = {};
 let dashboardData = null;
 
+// ===== MENÚ MÓVIL =====
+function toggleMenu() {
+    const sidebar = document.getElementById('sidebar');
+    const menuToggle = document.querySelector('.menu-toggle');
+    const menuOverlay = document.querySelector('.menu-overlay');
+    
+    sidebar.classList.toggle('active');
+    menuToggle.classList.toggle('active');
+    menuOverlay.classList.toggle('active');
+}
+
 // ===== INICIALIZACIÓN =====
 document.addEventListener('DOMContentLoaded', () => {
     initializeApp();
@@ -70,6 +81,17 @@ function setupNavigation() {
 }
 
 function showSection(sectionName) {
+    // Cerrar menú móvil si está abierto
+    const sidebar = document.getElementById('sidebar');
+    const menuToggle = document.querySelector('.menu-toggle');
+    const menuOverlay = document.querySelector('.menu-overlay');
+    
+    if (sidebar.classList.contains('active')) {
+        sidebar.classList.remove('active');
+        menuToggle.classList.remove('active');
+        menuOverlay.classList.remove('active');
+    }
+    
     // Actualizar nav
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
     document.querySelector(`[data-section="${sectionName}"]`).classList.add('active');
