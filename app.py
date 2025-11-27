@@ -12,7 +12,10 @@ app.config['SESSION_COOKIE_SECURE'] = False
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hora
-db = Database()
+
+# Inicializar base de datos (PostgreSQL en producción, SQLite local en desarrollo)
+database_url = os.environ.get('DATABASE_URL')
+db = Database(db_url=database_url) if database_url else Database(db_url='sqlite:///mari.db')
 
 # Credenciales de login
 USUARIO = 'mariateresa'

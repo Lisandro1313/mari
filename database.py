@@ -1,26 +1,83 @@
-import sqlite3
+import os
 from datetime import datetime
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 
+# Importar bibliotecas según el tipo de base de datos
+try:
+    import psycopg2
+    import psycopg2.extras
+    POSTGRES_AVAILABLE = True
+except ImportError:
+    POSTGRES_AVAILABLE = False
+
+try:
+    import sqlite3
+    SQLITE_AVAILABLE = True
+except ImportError:
+    SQLITE_AVAILABLE = False
+
 class Database:
-    def __init__(self, db_name='mari.db'):
-        self.db_name = db_name
+    def __init__(self, db_url=None):
+        self.db_url = db_url or os.environ.get('DATABASE_URL')
+        
+        # Determinar tipo de base de datos
+        if self.db_url and self.db_url.startswith('postgresql'):
+            if not POSTGRES_AVAILABLE:
+                raise ValueError("psycopg2 no está instalado")
+            self.db_type = 'postgresql'
+        elif self.db_url and self.db_url.startswith('sqlite'):
+            if not SQLITE_AVAILABLE:
+                raise ValueError("sqlite3 no está disponible")
+            self.db_type = 'sqlite'
+            self.db_name = self.db_url.replace('sqlite:///', '')
+        else:
+            # Fallback a SQLite local
+            if not SQLITE_AVAILABLE:
+                raise ValueError("No hay base de datos disponible")
+            self.db_type = 'sqlite'
+            self.db_name = 'mari.db'
+            
         self.init_db()
     
     def get_connection(self):
-        return sqlite3.connect(self.db_name)
+        if self.db_type == 'postgresql':
+            return psycopg2.connect(self.db_url)
+        else:
+            return sqlite3.connect(self.db_name)
+    
+    def get_placeholder(self):
+        """Retorna el placeholder correcto según el tipo de BD"""
+        return '%s' if self.db_type == 'postgresql' else '?'
+    
+    def get_autoincrement(self):
+        """Retorna el tipo de autoincremento correcto"""
+        return 'SERIAL' if self.db_type == 'postgresql' else 'INTEGER PRIMARY KEY AUTOINCREMENT'
+    
+    def convert_query(self, query):
+        """Convierte placeholders según el tipo de BD"""
+        if self.db_type == 'sqlite':
+            return query.replace('%s', '?')
+        return query
+    
+    def get_integrity_error(self):
+        """Retorna la excepción de integridad correcta"""
+        if self.db_type == 'postgresql':
+            return psycopg2.IntegrityError
+        return sqlite3.IntegrityError
     
     def init_db(self):
         """Inicializa la base de datos con las tablas necesarias"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
+        pk = self.get_autoincrement()
+        
         # Tabla de tutores
-        cursor.execute('''
+        cursor.execute(f'''
             CREATE TABLE IF NOT EXISTS tutores (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id {pk},
                 nombre_apellido TEXT NOT NULL,
                 dni TEXT NOT NULL,
                 direccion TEXT,
@@ -31,9 +88,9 @@ class Database:
         ''')
         
         # Tabla de atenciones (unifica castraciones y atención primaria)
-        cursor.execute('''
+        cursor.execute(f'''
             CREATE TABLE IF NOT EXISTS atenciones (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id {pk},
                 numero INTEGER UNIQUE NOT NULL,
                 fecha DATE NOT NULL,
                 tipo_atencion TEXT NOT NULL,
@@ -53,9 +110,9 @@ class Database:
         ''')
         
         # Tabla de turnos/cronograma
-        cursor.execute('''
+        cursor.execute(f'''
             CREATE TABLE IF NOT EXISTS turnos (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id {pk},
                 fecha DATE NOT NULL,
                 hora TEXT NOT NULL,
                 nombre_animal TEXT NOT NULL,
@@ -68,9 +125,9 @@ class Database:
         ''')
         
         # Tabla de auditoría/log
-        cursor.execute('''
+        cursor.execute(f'''
             CREATE TABLE IF NOT EXISTS auditoria (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id {pk},
                 fecha_hora TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 tipo_operacion TEXT NOT NULL,
                 tabla TEXT NOT NULL,
@@ -102,37 +159,37 @@ class Database:
         
         try:
             # Buscar o crear tutor
-            cursor.execute('SELECT id FROM tutores WHERE dni = ?', (dni,))
+            cursor.execute(self.convert_query('SELECT id FROM tutores WHERE dni = %s'), (dni,))
             tutor = cursor.fetchone()
             
             if tutor:
                 tutor_id = tutor[0]
                 # Actualizar datos del tutor
-                cursor.execute('''
+                cursor.execute(self.convert_query('''
                     UPDATE tutores 
-                    SET nombre_apellido = ?, direccion = ?, barrio = ?, telefono = ?
-                    WHERE id = ?
-                ''', (nombre_apellido, direccion, barrio, telefono, tutor_id))
+                    SET nombre_apellido = %s, direccion = %s, barrio = %s, telefono = %s
+                    WHERE id = %s
+                '''), (nombre_apellido, direccion, barrio, telefono, tutor_id))
             else:
                 # Crear nuevo tutor
-                cursor.execute('''
+                cursor.execute(self.convert_query('''
                     INSERT INTO tutores (nombre_apellido, dni, direccion, barrio, telefono)
-                    VALUES (?, ?, ?, ?, ?)
-                ''', (nombre_apellido, dni, direccion, barrio, telefono))
+                    VALUES (%s, %s, %s, %s, %s)
+                '''), (nombre_apellido, dni, direccion, barrio, telefono))
                 tutor_id = cursor.lastrowid
             
             # Agregar atención
-            cursor.execute('''
+            cursor.execute(self.convert_query('''
                 INSERT INTO atenciones (numero, fecha, tipo_atencion, nombre_animal, especie, sexo, edad, 
                                        tutor_id, motivo, diagnostico, tratamiento, derivacion, observaciones)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (numero, fecha, tipo_atencion, nombre_animal, especie, sexo, edad, tutor_id,
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            '''), (numero, fecha, tipo_atencion, nombre_animal, especie, sexo, edad, tutor_id,
                   motivo, diagnostico, tratamiento, derivacion, observaciones))
             
             conn.commit()
             tipo_texto = "Castración" if tipo_atencion == "castracion" else "Atención primaria"
             return True, f"{tipo_texto} registrada exitosamente (#{numero})"
-        except sqlite3.IntegrityError as e:
+        except self.get_integrity_error() as e:
             conn.rollback()
             if "numero" in str(e).lower():
                 return False, f"El número {numero} ya existe en el sistema"
@@ -156,7 +213,7 @@ class Database:
                 SELECT a.*, t.nombre_apellido, t.dni 
                 FROM atenciones a 
                 JOIN tutores t ON a.tutor_id = t.id 
-                WHERE a.numero = ?
+                WHERE a.numero = %s
             ''', (numero,))
             row_anterior = cursor.fetchone()
             
@@ -168,9 +225,9 @@ class Database:
             # Actualizar datos
             cursor.execute('''
                 UPDATE atenciones 
-                SET fecha = ?, nombre_animal = ?, especie = ?, sexo = ?, edad = ?,
-                    motivo = ?, diagnostico = ?, tratamiento = ?, derivacion = ?, observaciones = ?
-                WHERE numero = ?
+                SET fecha = %s, nombre_animal = %s, especie = %s, sexo = %s, edad = %s,
+                    motivo = %s, diagnostico = %s, tratamiento = %s, derivacion = %s, observaciones = %s
+                WHERE numero = %s
             ''', (datos.get('fecha'), datos.get('nombre_animal'), datos.get('especie'), 
                   datos.get('sexo'), datos.get('edad'), datos.get('motivo', ''), 
                   datos.get('diagnostico', ''), datos.get('tratamiento', ''), 
@@ -201,7 +258,7 @@ class Database:
         try:
             cursor.execute('''
                 INSERT INTO auditoria (tipo_operacion, tabla, registro_id, usuario, datos_anteriores, datos_nuevos, descripcion)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
             ''', (tipo_operacion, tabla, registro_id, usuario, datos_anteriores, datos_nuevos, descripcion))
             conn.commit()
         except Exception as e:
@@ -220,7 +277,7 @@ class Database:
                 SELECT a.*, t.nombre_apellido, t.dni 
                 FROM atenciones a 
                 JOIN tutores t ON a.tutor_id = t.id 
-                WHERE a.numero = ?
+                WHERE a.numero = %s
             ''', (numero,))
             row = cursor.fetchone()
             
@@ -236,7 +293,7 @@ class Database:
             )
             
             # Eliminar
-            cursor.execute('DELETE FROM atenciones WHERE numero = ?', (numero,))
+            cursor.execute('DELETE FROM atenciones WHERE numero = %s', (numero,))
             conn.commit()
             return True, "Registro eliminado y guardado en historial"
         except Exception as e:
@@ -254,7 +311,7 @@ class Database:
                    datos_anteriores, datos_nuevos, descripcion
             FROM auditoria
             ORDER BY fecha_hora DESC
-            LIMIT ?
+            LIMIT %s
         ''', (limite,))
         
         resultados = cursor.fetchall()
@@ -285,28 +342,28 @@ class Database:
         
         if filtros:
             if filtros.get('numero'):
-                query += ' AND a.numero = ?'
+                query += ' AND a.numero = %s'
                 params.append(filtros['numero'])
             if filtros.get('tipo_atencion'):
-                query += ' AND a.tipo_atencion = ?'
+                query += ' AND a.tipo_atencion = %s'
                 params.append(filtros['tipo_atencion'])
             if filtros.get('especie'):
-                query += ' AND a.especie LIKE ?'
+                query += ' AND a.especie LIKE %s'
                 params.append(f"%{filtros['especie']}%")
             if filtros.get('dni'):
-                query += ' AND t.dni LIKE ?'
+                query += ' AND t.dni LIKE %s'
                 params.append(f"%{filtros['dni']}%")
             if filtros.get('barrio'):
-                query += ' AND t.barrio LIKE ?'
+                query += ' AND t.barrio LIKE %s'
                 params.append(f"%{filtros['barrio']}%")
             if filtros.get('nombre_animal'):
-                query += ' AND a.nombre_animal LIKE ?'
+                query += ' AND a.nombre_animal LIKE %s'
                 params.append(f"%{filtros['nombre_animal']}%")
             if filtros.get('fecha_desde'):
-                query += ' AND a.fecha >= ?'
+                query += ' AND a.fecha >= %s'
                 params.append(filtros['fecha_desde'])
             if filtros.get('fecha_hasta'):
-                query += ' AND a.fecha <= ?'
+                query += ' AND a.fecha <= %s'
                 params.append(filtros['fecha_hasta'])
         
         query += ' ORDER BY a.numero DESC'
@@ -336,10 +393,10 @@ class Database:
         fecha_condicion = "1=1"
         fecha_params = []
         if fecha_desde:
-            fecha_condicion += " AND fecha >= ?"
+            fecha_condicion += " AND fecha >= %s"
             fecha_params.append(fecha_desde)
         if fecha_hasta:
-            fecha_condicion += " AND fecha <= ?"
+            fecha_condicion += " AND fecha <= %s"
             fecha_params.append(fecha_hasta)
         
         # Total de atenciones
@@ -459,7 +516,7 @@ class Database:
                    t.nombre_apellido, t.dni, t.direccion, t.barrio, t.telefono
             FROM castraciones c
             JOIN tutores t ON c.tutor_id = t.id
-            WHERE c.numero = ?
+            WHERE c.numero = %s
         ''', (numero,))
         
         resultado = cursor.fetchone()
@@ -491,7 +548,7 @@ class Database:
         
         try:
             # Buscar o crear tutor
-            cursor.execute('SELECT id FROM tutores WHERE dni = ?', (dni,))
+            cursor.execute('SELECT id FROM tutores WHERE dni = %s', (dni,))
             tutor = cursor.fetchone()
             
             if tutor:
@@ -499,27 +556,27 @@ class Database:
                 # Actualizar datos del tutor
                 cursor.execute('''
                     UPDATE tutores 
-                    SET nombre_apellido = ?, direccion = ?, barrio = ?, telefono = ?
-                    WHERE id = ?
+                    SET nombre_apellido = %s, direccion = %s, barrio = %s, telefono = %s
+                    WHERE id = %s
                 ''', (nombre_apellido, direccion, barrio, telefono, tutor_id))
             else:
                 # Crear nuevo tutor
                 cursor.execute('''
                     INSERT INTO tutores (nombre_apellido, dni, direccion, barrio, telefono)
-                    VALUES (?, ?, ?, ?, ?)
+                    VALUES (%s, %s, %s, %s, %s)
                 ''', (nombre_apellido, dni, direccion, barrio, telefono))
                 tutor_id = cursor.lastrowid
             
             # Actualizar castración
             cursor.execute('''
                 UPDATE castraciones
-                SET numero = ?, fecha = ?, nombre_animal = ?, especie = ?, sexo = ?, edad = ?, tutor_id = ?
-                WHERE numero = ?
+                SET numero = %s, fecha = %s, nombre_animal = %s, especie = %s, sexo = %s, edad = %s, tutor_id = %s
+                WHERE numero = %s
             ''', (numero, fecha, nombre_animal, especie, sexo, edad, tutor_id, numero_original))
             
             conn.commit()
             return True, "Registro actualizado exitosamente"
-        except sqlite3.IntegrityError:
+        except self.get_integrity_error():
             return False, f"Error: El número de registro {numero} ya existe"
         except Exception as e:
             return False, f"Error al actualizar: {str(e)}"
@@ -532,7 +589,7 @@ class Database:
         cursor = conn.cursor()
         
         try:
-            cursor.execute('DELETE FROM castraciones WHERE numero = ?', (numero,))
+            cursor.execute('DELETE FROM castraciones WHERE numero = %s', (numero,))
             
             if cursor.rowcount > 0:
                 conn.commit()
@@ -656,7 +713,7 @@ class Database:
         try:
             cursor.execute('''
                 INSERT INTO turnos (fecha, hora, nombre_animal, tutor_nombre, telefono, tipo, observaciones)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
             ''', (fecha, hora, nombre_animal, tutor_nombre, telefono, tipo, observaciones))
             
             conn.commit()
@@ -672,7 +729,7 @@ class Database:
         cursor = conn.cursor()
         
         try:
-            cursor.execute('UPDATE turnos SET estado = ? WHERE id = ?', (estado, turno_id))
+            cursor.execute('UPDATE turnos SET estado = %s WHERE id = %s', (estado, turno_id))
             conn.commit()
             return True, "Estado actualizado"
         except Exception as e:
@@ -686,7 +743,7 @@ class Database:
         cursor = conn.cursor()
         
         try:
-            cursor.execute('DELETE FROM turnos WHERE id = ?', (turno_id,))
+            cursor.execute('DELETE FROM turnos WHERE id = %s', (turno_id,))
             conn.commit()
             return True, "Turno eliminado"
         except Exception as e:
@@ -763,3 +820,4 @@ class Database:
             
         except Exception as e:
             return False, f"Error al exportar: {str(e)}"
+

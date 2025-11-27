@@ -16,7 +16,8 @@ class Config:
     PERMANENT_SESSION_LIFETIME = 3600  # 1 hora
     
     # Base de datos
-    DATABASE_NAME = 'mari.db'
+    DATABASE_URL = os.environ.get('DATABASE_URL')  # PostgreSQL en Render
+    DATABASE_NAME = 'mari.db'  # SQLite local (fallback)
     
     # Credenciales (CAMBIAR EN PRODUCCIÓN)
     USUARIO = os.environ.get('APP_USUARIO') or 'mariateresa'

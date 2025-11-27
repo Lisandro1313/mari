@@ -360,7 +360,7 @@ async function editarRegistro(numero) {
         // Llenar formulario con datos existentes
         document.getElementById('numero').value = data.numero;
         document.getElementById('fecha').value = data.fecha;
-        
+
         // Seleccionar tipo de atención
         const tipoRadios = document.getElementsByName('tipo_atencion');
         tipoRadios.forEach(radio => {
@@ -371,7 +371,7 @@ async function editarRegistro(numero) {
                 radio.closest('.tipo-option').classList.remove('active');
             }
         });
-        
+
         document.getElementById('nombre-animal').value = data.nombre_animal;
         document.getElementById('especie').value = data.especie;
         document.getElementById('sexo').value = data.sexo;
