@@ -360,29 +360,38 @@ async function editarRegistro(numero) {
         // Llenar formulario con datos existentes
         document.getElementById('numero').value = data.numero;
         document.getElementById('fecha').value = data.fecha;
-        document.getElementById('tipo-atencion').value = data.tipo_atencion;
+        
+        // Seleccionar tipo de atención
+        const tipoRadios = document.getElementsByName('tipo_atencion');
+        tipoRadios.forEach(radio => {
+            if (radio.value === data.tipo_atencion) {
+                radio.checked = true;
+                radio.closest('.tipo-option').classList.add('active');
+            } else {
+                radio.closest('.tipo-option').classList.remove('active');
+            }
+        });
+        
         document.getElementById('nombre-animal').value = data.nombre_animal;
         document.getElementById('especie').value = data.especie;
         document.getElementById('sexo').value = data.sexo;
-        document.getElementById('edad').value = data.edad;
+        document.getElementById('edad').value = data.edad || '';
         document.getElementById('nombre-apellido').value = data.tutor.nombre_apellido;
         document.getElementById('dni').value = data.tutor.dni;
-        document.getElementById('direccion').value = data.tutor.direccion;
-        document.getElementById('barrio').value = data.tutor.barrio;
-        document.getElementById('telefono').value = data.tutor.telefono;
-        document.getElementById('motivo').value = data.motivo;
-        document.getElementById('diagnostico').value = data.diagnostico;
-        document.getElementById('tratamiento').value = data.tratamiento;
-        document.getElementById('derivacion').value = data.derivacion;
-        document.getElementById('observaciones').value = data.observaciones;
+        document.getElementById('direccion').value = data.tutor.direccion || '';
+        document.getElementById('barrio').value = data.tutor.barrio || '';
+        document.getElementById('telefono').value = data.tutor.telefono || '';
+        document.getElementById('motivo').value = data.motivo || '';
+        document.getElementById('diagnostico').value = data.diagnostico || '';
+        document.getElementById('tratamiento').value = data.tratamiento || '';
+        document.getElementById('derivacion').value = data.derivacion || '';
+        document.getElementById('observaciones').value = data.observaciones || '';
 
         // Mostrar sección de atención primaria si corresponde
-        if (data.tipo_atencion === 'primaria') {
+        if (data.tipo_atencion === 'atencion_primaria') {
             document.getElementById('section-atencion-primaria').style.display = 'block';
-            document.querySelectorAll('.tipo-option').forEach(opt => {
-                if (opt.dataset.tipo === 'primaria') opt.classList.add('active');
-                else opt.classList.remove('active');
-            });
+        } else {
+            document.getElementById('section-atencion-primaria').style.display = 'none';
         }
 
         // Cambiar a sección de registro
@@ -662,7 +671,7 @@ async function cargarAuditoria() {
         html += '</tr></thead><tbody>';
 
         logs.forEach(log => {
-            const fecha = new Date(log.fecha_hora + 'Z').toLocaleString('es-AR', { 
+            const fecha = new Date(log.fecha_hora + 'Z').toLocaleString('es-AR', {
                 timeZone: 'America/Argentina/Buenos_Aires',
                 year: 'numeric',
                 month: '2-digit',
