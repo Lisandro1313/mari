@@ -643,31 +643,45 @@ class Database:
         
         stats = {}
         
+        # Funciones SQL compatibles según el tipo de BD
+        if self.db_type == 'postgresql':
+            today = "CURRENT_DATE"
+            now_timestamp = "CURRENT_TIMESTAMP"
+            week_ago = "CURRENT_DATE - INTERVAL '7 days'"
+            month_format = "TO_CHAR(fecha, 'YYYY-MM')"
+            current_month = "TO_CHAR(CURRENT_DATE, 'YYYY-MM')"
+        else:
+            today = "DATE('now')"
+            now_timestamp = "datetime('now')"
+            week_ago = "DATE('now', 'weekday 0', '-7 days')"
+            month_format = "strftime('%Y-%m', fecha)"
+            current_month = "strftime('%Y-%m', 'now')"
+        
         # Atenciones de hoy (total)
-        cursor.execute('''
+        cursor.execute(f'''
             SELECT COUNT(*) FROM atenciones 
-            WHERE DATE(fecha) = DATE('now')
+            WHERE DATE(fecha) = {today}
         ''')
         stats['hoy'] = cursor.fetchone()[0]
         
         # Atenciones de esta semana
-        cursor.execute('''
+        cursor.execute(f'''
             SELECT COUNT(*) FROM atenciones 
-            WHERE DATE(fecha) >= DATE('now', 'weekday 0', '-7 days')
+            WHERE DATE(fecha) >= {week_ago}
         ''')
         stats['semana'] = cursor.fetchone()[0]
         
         # Atenciones del mes
-        cursor.execute('''
+        cursor.execute(f'''
             SELECT COUNT(*) FROM atenciones 
-            WHERE strftime('%Y-%m', fecha) = strftime('%Y-%m', 'now')
+            WHERE {month_format} = {current_month}
         ''')
         stats['mes'] = cursor.fetchone()[0]
         
         # Atención primaria del día
-        cursor.execute('''
+        cursor.execute(f'''
             SELECT COUNT(*) FROM atenciones 
-            WHERE DATE(fecha) = DATE('now')
+            WHERE DATE(fecha) = {today}
             AND tipo_atencion = 'atencion_primaria'
         ''')
         stats['primaria_hoy'] = cursor.fetchone()[0]
@@ -685,7 +699,7 @@ class Database:
         stats['ultimas'] = [
             {
                 'numero': r[0],
-                'fecha': r[1],
+                'fecha': str(r[1]) if r[1] else None,  # Convertir a string
                 'tipo_atencion': r[2],
                 'nombre_animal': r[3],
                 'especie': r[4],
@@ -695,10 +709,10 @@ class Database:
         ]
         
         # Turnos de hoy
-        cursor.execute('''
+        cursor.execute(f'''
             SELECT id, hora, nombre_animal, tutor_nombre, tipo, estado
             FROM turnos
-            WHERE DATE(fecha) = DATE('now')
+            WHERE DATE(fecha) = {today}
             ORDER BY hora
         ''')
         resultados = cursor.fetchall()
@@ -715,17 +729,26 @@ class Database:
         ]
         
         # Turnos de esta semana
-        cursor.execute('''
-            SELECT fecha, hora, nombre_animal, tutor_nombre, tipo, estado, id
-            FROM turnos
-            WHERE DATE(fecha) >= DATE('now')
-            AND DATE(fecha) <= DATE('now', '+7 days')
-            ORDER BY fecha, hora
-        ''')
+        if self.db_type == 'postgresql':
+            cursor.execute('''
+                SELECT fecha, hora, nombre_animal, tutor_nombre, tipo, estado, id
+                FROM turnos
+                WHERE DATE(fecha) >= CURRENT_DATE
+                AND DATE(fecha) <= CURRENT_DATE + INTERVAL '7 days'
+                ORDER BY fecha, hora
+            ''')
+        else:
+            cursor.execute('''
+                SELECT fecha, hora, nombre_animal, tutor_nombre, tipo, estado, id
+                FROM turnos
+                WHERE DATE(fecha) >= DATE('now')
+                AND DATE(fecha) <= DATE('now', '+7 days')
+                ORDER BY fecha, hora
+            ''')
         resultados = cursor.fetchall()
         stats['turnos_semana'] = [
             {
-                'fecha': r[0],
+                'fecha': str(r[0]) if r[0] else None,
                 'hora': r[1],
                 'nombre_animal': r[2],
                 'tutor_nombre': r[3],
