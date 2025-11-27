@@ -506,10 +506,37 @@ async function cargarEstadisticas() {
         const response = await fetch(`/api/estadisticas?${params}`);
         const stats = await response.json();
 
+        // Actualizar totales en tarjetas
+        actualizarTotalesEstadisticas(stats);
+        
         renderizarGraficos(stats);
     } catch (error) {
         mostrarNotificacion('Error al cargar estadísticas', 'error');
     }
+}
+
+function actualizarTotalesEstadisticas(stats) {
+    // Total de atenciones
+    const totalAtenciones = stats.total || 0;
+    document.getElementById('total-atenciones').textContent = totalAtenciones;
+    
+    // Castraciones y Atención Primaria
+    const castraciones = stats.por_tipo ? (stats.por_tipo.find(t => t[0] === 'castracion')?.[1] || 0) : 0;
+    const atencionPrimaria = stats.por_tipo ? (stats.por_tipo.find(t => t[0] === 'atencion_primaria')?.[1] || 0) : 0;
+    document.getElementById('total-castraciones').textContent = castraciones;
+    document.getElementById('total-atencion-primaria').textContent = atencionPrimaria;
+    
+    // Caninos y Felinos
+    const caninos = stats.por_especie ? (stats.por_especie.find(e => e[0] === 'Canino')?.[1] || 0) : 0;
+    const felinos = stats.por_especie ? (stats.por_especie.find(e => e[0] === 'Felino')?.[1] || 0) : 0;
+    document.getElementById('total-caninos').textContent = caninos;
+    document.getElementById('total-felinos').textContent = felinos;
+    
+    // Hembras y Machos
+    const hembras = stats.por_sexo ? (stats.por_sexo.find(s => s[0] === 'Hembra')?.[1] || 0) : 0;
+    const machos = stats.por_sexo ? (stats.por_sexo.find(s => s[0] === 'Macho')?.[1] || 0) : 0;
+    document.getElementById('total-hembras').textContent = hembras;
+    document.getElementById('total-machos').textContent = machos;
 }
 
 function renderizarGraficos(stats) {
