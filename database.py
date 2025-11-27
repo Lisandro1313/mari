@@ -6,28 +6,44 @@ from openpyxl.styles import Font, PatternFill, Alignment
 import sqlite3
 
 # Intentar importar psycopg2 (solo disponible en producción)
+psycopg2 = None
 try:
     import psycopg2
     import psycopg2.extras
-except ImportError:
-    psycopg2 = None
+    print("✅ psycopg2 importado correctamente")
+except ImportError as e:
+    print(f"⚠️ psycopg2 no disponible: {e}")
+except Exception as e:
+    print(f"❌ Error al importar psycopg2: {e}")
 
 class Database:
     def __init__(self, db_url=None):
         self.db_url = db_url or os.environ.get('DATABASE_URL')
         
+        print(f"🔍 DATABASE_URL: {self.db_url[:50] if self.db_url else 'None'}...")
+        print(f"🔍 psycopg2 disponible: {psycopg2 is not None}")
+        
         # Determinar tipo de base de datos
         if self.db_url and self.db_url.startswith('postgresql'):
             if psycopg2 is None:
-                raise ValueError("psycopg2 no está instalado. Instalar con: pip install psycopg2-binary")
+                # Intentar importar de nuevo por si acaso
+                try:
+                    import psycopg2 as pg2
+                    globals()['psycopg2'] = pg2
+                    print("✅ psycopg2 importado en segundo intento")
+                except ImportError:
+                    raise ValueError("psycopg2 no está instalado. Instalar con: pip install psycopg2-binary")
             self.db_type = 'postgresql'
+            print("✅ Usando PostgreSQL")
         elif self.db_url and self.db_url.startswith('sqlite'):
             self.db_type = 'sqlite'
             self.db_name = self.db_url.replace('sqlite:///', '')
+            print(f"✅ Usando SQLite: {self.db_name}")
         else:
             # Fallback a SQLite local
             self.db_type = 'sqlite'
             self.db_name = 'mari.db'
+            print(f"✅ Usando SQLite por defecto: {self.db_name}")
             
         self.init_db()
     
