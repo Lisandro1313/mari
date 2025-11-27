@@ -232,15 +232,16 @@ class Database:
         """Edita una atención existente y registra cambios en auditoría"""
         conn = self.get_connection()
         cursor = conn.cursor()
+        placeholder = self.get_placeholder()
         
         try:
             # Obtener datos anteriores para auditoría
-            cursor.execute('''
+            cursor.execute(self.convert_query('''
                 SELECT a.*, t.nombre_apellido, t.dni 
                 FROM atenciones a 
                 JOIN tutores t ON a.tutor_id = t.id 
                 WHERE a.numero = %s
-            ''', (numero,))
+            '''), (numero,))
             row_anterior = cursor.fetchone()
             
             if not row_anterior:
@@ -248,16 +249,41 @@ class Database:
             
             datos_anteriores = f"#{row_anterior[1]} - {row_anterior[4]} ({row_anterior[5]}) - Tutor: {row_anterior[-2]}"
             
-            # Actualizar datos
-            cursor.execute('''
+            # Primero, actualizar o crear tutor
+            dni = datos.get('dni')
+            cursor.execute(self.convert_query('SELECT id FROM tutores WHERE dni = %s'), (dni,))
+            tutor_row = cursor.fetchone()
+            
+            if tutor_row:
+                tutor_id = tutor_row[0]
+                # Actualizar tutor existente
+                cursor.execute(self.convert_query('''
+                    UPDATE tutores 
+                    SET nombre_apellido = %s, direccion = %s, barrio = %s, telefono = %s
+                    WHERE id = %s
+                '''), (datos.get('nombre_apellido'), datos.get('direccion', ''), 
+                      datos.get('barrio', ''), datos.get('telefono', ''), tutor_id))
+            else:
+                # Crear nuevo tutor
+                cursor.execute(self.convert_query('''
+                    INSERT INTO tutores (nombre_apellido, dni, direccion, barrio, telefono)
+                    VALUES (%s, %s, %s, %s, %s)
+                '''), (datos.get('nombre_apellido'), dni, datos.get('direccion', ''),
+                      datos.get('barrio', ''), datos.get('telefono', '')))
+                tutor_id = self.get_lastrowid(cursor)
+            
+            # Actualizar datos de la atención
+            cursor.execute(self.convert_query('''
                 UPDATE atenciones 
                 SET fecha = %s, nombre_animal = %s, especie = %s, sexo = %s, edad = %s,
-                    motivo = %s, diagnostico = %s, tratamiento = %s, derivacion = %s, observaciones = %s
+                    motivo = %s, diagnostico = %s, tratamiento = %s, derivacion = %s, 
+                    observaciones = %s, tutor_id = %s
                 WHERE numero = %s
-            ''', (datos.get('fecha'), datos.get('nombre_animal'), datos.get('especie'), 
-                  datos.get('sexo'), datos.get('edad'), datos.get('motivo', ''), 
+            '''), (datos.get('fecha'), datos.get('nombre_animal'), datos.get('especie'), 
+                  datos.get('sexo'), datos.get('edad', ''), datos.get('motivo', ''), 
                   datos.get('diagnostico', ''), datos.get('tratamiento', ''), 
-                  datos.get('derivacion', ''), datos.get('observaciones', ''), numero))
+                  datos.get('derivacion', ''), datos.get('observaciones', ''), 
+                  tutor_id, numero))
             
             # Registrar en auditoría
             datos_nuevos = f"#{numero} - {datos.get('nombre_animal')} ({datos.get('especie')})"
@@ -282,10 +308,10 @@ class Database:
         cursor = conn.cursor()
         
         try:
-            cursor.execute('''
+            cursor.execute(self.convert_query('''
                 INSERT INTO auditoria (tipo_operacion, tabla, registro_id, usuario, datos_anteriores, datos_nuevos, descripcion)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
-            ''', (tipo_operacion, tabla, registro_id, usuario, datos_anteriores, datos_nuevos, descripcion))
+            '''), (tipo_operacion, tabla, registro_id, usuario, datos_anteriores, datos_nuevos, descripcion))
             conn.commit()
         except Exception as e:
             print(f"Error al registrar auditoría: {e}")
@@ -853,24 +879,23 @@ class Database:
             # Obtener datos de atenciones con información completa
             query = '''
                 SELECT 
-                    a.numero AS 'Número',
-                    a.fecha AS 'Fecha',
-                    a.tipo_atencion AS 'Tipo de Atención',
-                    a.nombre_animal AS 'Nombre Animal',
-                    a.especie AS 'Especie',
-                    a.sexo AS 'Sexo',
-                    COALESCE(a.edad, '') AS 'Edad',
-                    t.nombre_apellido AS 'Tutor',
-                    t.dni AS 'DNI',
-                    COALESCE(t.telefono, '') AS 'Teléfono',
-                    COALESCE(t.direccion, '') AS 'Dirección',
-                    COALESCE(t.barrio, '') AS 'Barrio',
-                    COALESCE(a.motivo, '') AS 'Motivo',
-                    COALESCE(a.diagnostico, '') AS 'Diagnóstico',
-                    COALESCE(a.tratamiento, '') AS 'Tratamiento',
-                    COALESCE(a.derivacion, '') AS 'Derivación',
-                    a.estado AS 'Estado',
-                    COALESCE(a.observaciones, '') AS 'Observaciones'
+                    a.numero AS "Número",
+                    a.fecha AS "Fecha",
+                    a.tipo_atencion AS "Tipo de Atención",
+                    a.nombre_animal AS "Nombre Animal",
+                    a.especie AS "Especie",
+                    a.sexo AS "Sexo",
+                    COALESCE(a.edad, '') AS "Edad",
+                    t.nombre_apellido AS "Tutor",
+                    t.dni AS "DNI",
+                    COALESCE(t.telefono, '') AS "Teléfono",
+                    COALESCE(t.direccion, '') AS "Dirección",
+                    COALESCE(t.barrio, '') AS "Barrio",
+                    COALESCE(a.motivo, '') AS "Motivo",
+                    COALESCE(a.diagnostico, '') AS "Diagnóstico",
+                    COALESCE(a.tratamiento, '') AS "Tratamiento",
+                    COALESCE(a.derivacion, '') AS "Derivación",
+                    COALESCE(a.observaciones, '') AS "Observaciones"
                 FROM atenciones a
                 JOIN tutores t ON a.tutor_id = t.id
                 ORDER BY a.numero DESC
@@ -909,9 +934,11 @@ class Database:
                             pass
                     adjusted_width = min(max_length + 2, 50)
                     worksheet.column_dimensions[column_letter].width = adjusted_width
-                
+            
             return True, f"Datos exportados exitosamente a {filename}"
             
         except Exception as e:
+            import traceback
+            print(f"Error completo al exportar: {traceback.format_exc()}")
             return False, f"Error al exportar: {str(e)}"
 
