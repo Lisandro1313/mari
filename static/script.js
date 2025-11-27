@@ -643,48 +643,56 @@ function mostrarNotificacion(mensaje, tipo = 'info') {
 
 // ===== AUDITORÍA =====
 async function cargarAuditoria() {
-        try {
-            const response = await fetch('/api/auditoria');
-            const logs = await response.json();
+    try {
+        const response = await fetch('/api/auditoria');
+        const logs = await response.json();
 
-            const container = document.getElementById('tabla-auditoria');
+        const container = document.getElementById('tabla-auditoria');
 
-            if (!logs || logs.length === 0) {
-                container.innerHTML = '<p class="info-text">No hay registros de auditoría.</p>';
-                return;
-            }
-
-            let html = '<table class="audit-table"><thead><tr>';
-            html += '<th>Fecha/Hora</th>';
-            html += '<th>Operación</th>';
-            html += '<th>Usuario</th>';
-            html += '<th>Detalles</th>';
-            html += '</tr></thead><tbody>';
-
-            logs.forEach(log => {
-                const fecha = new Date(log.fecha_hora).toLocaleString('es-AR');
-                const tipo = log.tipo_operacion;
-                const badgeClass = tipo === 'DELETE' ? 'delete' : 'update';
-                const tipoTexto = tipo === 'DELETE' ? '🗑️ Eliminación' : '✏️ Edición';
-
-                html += '<tr>';
-                html += `<td>${fecha}</td>`;
-                html += `<td><span class="audit-badge ${badgeClass}">${tipoTexto}</span></td>`;
-                html += `<td>${log.usuario}</td>`;
-                html += `<td><div style="max-width: 400px; overflow: hidden; text-overflow: ellipsis;">${log.descripcion || ''}<br>`;
-                html += `<small style="color: #6b7280;">Anterior: ${log.datos_anteriores || 'N/A'}</small>`;
-                if (log.datos_nuevos) {
-                    html += `<br><small style="color: #059669;">Nuevo: ${log.datos_nuevos}</small>`;
-                }
-                html += '</div></td>';
-                html += '</tr>';
-            });
-
-            html += '</tbody></table>';
-            container.innerHTML = html;
-        } catch (error) {
-            mostrarNotificacion('Error al cargar historial', 'error');
+        if (!logs || logs.length === 0) {
+            container.innerHTML = '<p class="info-text">No hay registros de auditoría.</p>';
+            return;
         }
+
+        let html = '<table class="audit-table"><thead><tr>';
+        html += '<th>Fecha/Hora</th>';
+        html += '<th>Operación</th>';
+        html += '<th>Usuario</th>';
+        html += '<th>Detalles</th>';
+        html += '</tr></thead><tbody>';
+
+        logs.forEach(log => {
+            const fecha = new Date(log.fecha_hora + 'Z').toLocaleString('es-AR', { 
+                timeZone: 'America/Argentina/Buenos_Aires',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            const tipo = log.tipo_operacion;
+            const badgeClass = tipo === 'DELETE' ? 'delete' : 'update';
+            const tipoTexto = tipo === 'DELETE' ? '🗑️ Eliminación' : '✏️ Edición';
+
+            html += '<tr>';
+            html += `<td>${fecha}</td>`;
+            html += `<td><span class="audit-badge ${badgeClass}">${tipoTexto}</span></td>`;
+            html += `<td>${log.usuario}</td>`;
+            html += `<td><div style="max-width: 400px; overflow: hidden; text-overflow: ellipsis;">${log.descripcion || ''}<br>`;
+            html += `<small style="color: #6b7280;">Anterior: ${log.datos_anteriores || 'N/A'}</small>`;
+            if (log.datos_nuevos) {
+                html += `<br><small style="color: #059669;">Nuevo: ${log.datos_nuevos}</small>`;
+            }
+            html += '</div></td>';
+            html += '</tr>';
+        });
+
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    } catch (error) {
+        mostrarNotificacion('Error al cargar historial', 'error');
+    }
 }
 
 // ===== FUNCIONES GLOBALES PARA HTML onclick =====
