@@ -630,8 +630,25 @@ function renderChart(canvasId, type, data, title) {
 
 // ===== UTILIDADES =====
 function formatearFecha(fecha) {
-    const [year, month, day] = fecha.split('-');
-    return `${day}/${month}/${year}`;
+    if (!fecha) return 'No especificada';
+    
+    // Si es un string con formato ISO (2025-11-27) o fecha completa
+    if (typeof fecha === 'string') {
+        // Extraer solo la parte de la fecha si viene con hora
+        const soloFecha = fecha.split('T')[0].split(' ')[0];
+        const [year, month, day] = soloFecha.split('-');
+        return `${day}/${month}/${year}`;
+    }
+    
+    // Si es un objeto Date
+    if (fecha instanceof Date) {
+        const day = String(fecha.getDate()).padStart(2, '0');
+        const month = String(fecha.getMonth() + 1).padStart(2, '0');
+        const year = fecha.getFullYear();
+        return `${day}/${month}/${year}`;
+    }
+    
+    return fecha.toString();
 }
 
 function formatearMes(mes) {
