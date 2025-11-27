@@ -59,7 +59,10 @@ class Database:
     
     def get_autoincrement(self):
         """Retorna el tipo de autoincremento correcto"""
-        return 'SERIAL' if self.db_type == 'postgresql' else 'INTEGER PRIMARY KEY AUTOINCREMENT'
+        if self.db_type == 'postgresql':
+            return 'SERIAL PRIMARY KEY'
+        else:
+            return 'INTEGER PRIMARY KEY AUTOINCREMENT'
     
     def convert_query(self, query):
         """Convierte placeholders según el tipo de BD"""
