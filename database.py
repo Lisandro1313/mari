@@ -3,20 +3,14 @@ from datetime import datetime
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
+import sqlite3
 
-# Importar bibliotecas según el tipo de base de datos
+# Intentar importar psycopg2 (solo disponible en producción)
 try:
     import psycopg2
     import psycopg2.extras
-    POSTGRES_AVAILABLE = True
 except ImportError:
-    POSTGRES_AVAILABLE = False
-
-try:
-    import sqlite3
-    SQLITE_AVAILABLE = True
-except ImportError:
-    SQLITE_AVAILABLE = False
+    psycopg2 = None
 
 class Database:
     def __init__(self, db_url=None):
@@ -24,18 +18,14 @@ class Database:
         
         # Determinar tipo de base de datos
         if self.db_url and self.db_url.startswith('postgresql'):
-            if not POSTGRES_AVAILABLE:
-                raise ValueError("psycopg2 no está instalado")
+            if psycopg2 is None:
+                raise ValueError("psycopg2 no está instalado. Instalar con: pip install psycopg2-binary")
             self.db_type = 'postgresql'
         elif self.db_url and self.db_url.startswith('sqlite'):
-            if not SQLITE_AVAILABLE:
-                raise ValueError("sqlite3 no está disponible")
             self.db_type = 'sqlite'
             self.db_name = self.db_url.replace('sqlite:///', '')
         else:
             # Fallback a SQLite local
-            if not SQLITE_AVAILABLE:
-                raise ValueError("No hay base de datos disponible")
             self.db_type = 'sqlite'
             self.db_name = 'mari.db'
             
