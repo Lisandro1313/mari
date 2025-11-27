@@ -252,10 +252,10 @@ class Database:
             # Primero, actualizar o crear tutor
             dni = datos.get('dni')
             cursor.execute(self.convert_query('SELECT id FROM tutores WHERE dni = %s'), (dni,))
-            tutor_row = cursor.fetchone()
+            tutor_result = cursor.fetchone()
             
-            if tutor_row:
-                tutor_id = tutor_row[0]
+            if tutor_result:
+                tutor_id = tutor_result[0]
                 # Actualizar tutor existente
                 cursor.execute(self.convert_query('''
                     UPDATE tutores 
@@ -265,12 +265,20 @@ class Database:
                       datos.get('barrio', ''), datos.get('telefono', ''), tutor_id))
             else:
                 # Crear nuevo tutor
-                cursor.execute(self.convert_query('''
-                    INSERT INTO tutores (nombre_apellido, dni, direccion, barrio, telefono)
-                    VALUES (%s, %s, %s, %s, %s)
-                '''), (datos.get('nombre_apellido'), dni, datos.get('direccion', ''),
-                      datos.get('barrio', ''), datos.get('telefono', '')))
-                tutor_id = self.get_lastrowid(cursor)
+                if self.db_type == 'postgresql':
+                    cursor.execute(self.convert_query('''
+                        INSERT INTO tutores (nombre_apellido, dni, direccion, barrio, telefono)
+                        VALUES (%s, %s, %s, %s, %s) RETURNING id
+                    '''), (datos.get('nombre_apellido'), dni, datos.get('direccion', ''),
+                          datos.get('barrio', ''), datos.get('telefono', '')))
+                    tutor_id = cursor.fetchone()[0]
+                else:
+                    cursor.execute(self.convert_query('''
+                        INSERT INTO tutores (nombre_apellido, dni, direccion, barrio, telefono)
+                        VALUES (%s, %s, %s, %s, %s)
+                    '''), (datos.get('nombre_apellido'), dni, datos.get('direccion', ''),
+                          datos.get('barrio', ''), datos.get('telefono', '')))
+                    tutor_id = cursor.lastrowid
             
             # Actualizar datos de la atención
             cursor.execute(self.convert_query('''
