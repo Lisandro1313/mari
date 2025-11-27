@@ -318,19 +318,19 @@ function setupFormHandlers() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(turno)
         })
-        .then(response => response.json())
-        .then(result => {
-            if (result.success) {
-                mostrarNotificacion('Turno creado exitosamente', 'success');
-                cerrarModalTurno();
-                cargarDashboard();
-            } else {
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    mostrarNotificacion('Turno creado exitosamente', 'success');
+                    cerrarModalTurno();
+                    cargarDashboard();
+                } else {
+                    mostrarNotificacion('Error al crear turno', 'error');
+                }
+            })
+            .catch(error => {
                 mostrarNotificacion('Error al crear turno', 'error');
-            }
-        })
-        .catch(error => {
-            mostrarNotificacion('Error al crear turno', 'error');
-        });
+            });
     });
 }
 
