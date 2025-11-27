@@ -414,15 +414,16 @@ class Database:
         cursor = conn.cursor()
         
         stats = {}
+        placeholder = self.get_placeholder()
         
         # Construir condición de fecha
         fecha_condicion = "1=1"
         fecha_params = []
         if fecha_desde:
-            fecha_condicion += " AND fecha >= ?"
+            fecha_condicion += f" AND fecha >= {placeholder}"
             fecha_params.append(fecha_desde)
         if fecha_hasta:
-            fecha_condicion += " AND fecha <= ?"
+            fecha_condicion += f" AND fecha <= {placeholder}"
             fecha_params.append(fecha_hasta)
         
         # Total de atenciones
@@ -458,34 +459,61 @@ class Database:
         ''', fecha_params)
         stats['por_sexo'] = cursor.fetchall()
         
-        # Por día
-        cursor.execute(f'''
-            SELECT DATE(fecha) as dia, COUNT(*) as cantidad
-            FROM atenciones
-            WHERE {fecha_condicion}
-            GROUP BY dia
-            ORDER BY dia ASC
-        ''', fecha_params)
+        # Por día - compatible con ambas BD
+        if self.db_type == 'postgresql':
+            cursor.execute(f'''
+                SELECT fecha::date as dia, COUNT(*) as cantidad
+                FROM atenciones
+                WHERE {fecha_condicion}
+                GROUP BY fecha::date
+                ORDER BY dia ASC
+            ''', fecha_params)
+        else:
+            cursor.execute(f'''
+                SELECT DATE(fecha) as dia, COUNT(*) as cantidad
+                FROM atenciones
+                WHERE {fecha_condicion}
+                GROUP BY dia
+                ORDER BY dia ASC
+            ''', fecha_params)
         stats['por_dia'] = cursor.fetchall()
         
-        # Por semana
-        cursor.execute(f'''
-            SELECT strftime('%Y-W%W', fecha) as semana, COUNT(*) as cantidad
-            FROM atenciones
-            WHERE {fecha_condicion}
-            GROUP BY semana
-            ORDER BY semana ASC
-        ''', fecha_params)
+        # Por semana - compatible con ambas BD
+        if self.db_type == 'postgresql':
+            cursor.execute(f'''
+                SELECT TO_CHAR(fecha, 'IYYY-IW') as semana, COUNT(*) as cantidad
+                FROM atenciones
+                WHERE {fecha_condicion}
+                GROUP BY TO_CHAR(fecha, 'IYYY-IW')
+                ORDER BY semana ASC
+            ''', fecha_params)
+        else:
+            cursor.execute(f'''
+                SELECT strftime('%Y-W%W', fecha) as semana, COUNT(*) as cantidad
+                FROM atenciones
+                WHERE {fecha_condicion}
+                GROUP BY semana
+                ORDER BY semana ASC
+            ''', fecha_params)
         stats['por_semana'] = cursor.fetchall()
         
-        # Por mes
-        cursor.execute(f'''
-            SELECT strftime('%Y-%m', fecha) as mes, COUNT(*) as cantidad
-            FROM atenciones
-            WHERE {fecha_condicion}
-            GROUP BY mes
-            ORDER BY mes ASC
-        ''', fecha_params)
+        # Por mes - compatible con ambas BD
+        if self.db_type == 'postgresql':
+            cursor.execute(f'''
+                SELECT TO_CHAR(fecha, 'YYYY-MM') as mes, COUNT(*) as cantidad
+                FROM atenciones
+                WHERE {fecha_condicion}
+                GROUP BY TO_CHAR(fecha, 'YYYY-MM')
+                ORDER BY mes ASC
+            ''', fecha_params)
+        else:
+            cursor.execute(f'''
+                SELECT strftime('%Y-%m', fecha) as mes, COUNT(*) as cantidad
+                FROM atenciones
+                WHERE {fecha_condicion}
+                GROUP BY mes
+                ORDER BY mes ASC
+            ''', fecha_params)
         stats['por_mes'] = cursor.fetchall()
         
         # Por barrio
@@ -500,14 +528,23 @@ class Database:
         ''', fecha_params)
         stats['por_barrio'] = cursor.fetchall()
         
-        # Por año
-        cursor.execute(f'''
-            SELECT strftime('%Y', fecha) as anio, COUNT(*) as cantidad
-            FROM atenciones
-            WHERE {fecha_condicion}
-            GROUP BY anio
-            ORDER BY anio DESC
-        ''', fecha_params)
+        # Por año - compatible con ambas BD
+        if self.db_type == 'postgresql':
+            cursor.execute(f'''
+                SELECT EXTRACT(YEAR FROM fecha)::text as anio, COUNT(*) as cantidad
+                FROM atenciones
+                WHERE {fecha_condicion}
+                GROUP BY EXTRACT(YEAR FROM fecha)
+                ORDER BY anio DESC
+            ''', fecha_params)
+        else:
+            cursor.execute(f'''
+                SELECT strftime('%Y', fecha) as anio, COUNT(*) as cantidad
+                FROM atenciones
+                WHERE {fecha_condicion}
+                GROUP BY anio
+                ORDER BY anio DESC
+            ''', fecha_params)
         stats['por_anio'] = cursor.fetchall()
         
         # Totales por especie y sexo combinados
