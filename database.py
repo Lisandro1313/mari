@@ -76,6 +76,15 @@ class Database:
             return psycopg2.IntegrityError
         return sqlite3.IntegrityError
     
+    def get_lastrowid(self, cursor):
+        """Obtiene el último ID insertado según el tipo de BD"""
+        if self.db_type == 'postgresql':
+            # En PostgreSQL, fetchone() después de INSERT ... RETURNING
+            return cursor.fetchone()[0]
+        else:
+            # En SQLite, usar lastrowid
+            return cursor.lastrowid
+    
     def init_db(self):
         """Inicializa la base de datos con las tablas necesarias"""
         conn = self.get_connection()
@@ -181,11 +190,19 @@ class Database:
                 '''), (nombre_apellido, direccion, barrio, telefono, tutor_id))
             else:
                 # Crear nuevo tutor
-                cursor.execute(self.convert_query('''
-                    INSERT INTO tutores (nombre_apellido, dni, direccion, barrio, telefono)
-                    VALUES (%s, %s, %s, %s, %s)
-                '''), (nombre_apellido, dni, direccion, barrio, telefono))
-                tutor_id = cursor.lastrowid
+                if self.db_type == 'postgresql':
+                    cursor.execute(self.convert_query('''
+                        INSERT INTO tutores (nombre_apellido, dni, direccion, barrio, telefono)
+                        VALUES (%s, %s, %s, %s, %s)
+                        RETURNING id
+                    '''), (nombre_apellido, dni, direccion, barrio, telefono))
+                    tutor_id = self.get_lastrowid(cursor)
+                else:
+                    cursor.execute(self.convert_query('''
+                        INSERT INTO tutores (nombre_apellido, dni, direccion, barrio, telefono)
+                        VALUES (%s, %s, %s, %s, %s)
+                    '''), (nombre_apellido, dni, direccion, barrio, telefono))
+                    tutor_id = cursor.lastrowid
             
             # Agregar atención
             cursor.execute(self.convert_query('''
@@ -570,11 +587,19 @@ class Database:
                 ''', (nombre_apellido, direccion, barrio, telefono, tutor_id))
             else:
                 # Crear nuevo tutor
-                cursor.execute('''
-                    INSERT INTO tutores (nombre_apellido, dni, direccion, barrio, telefono)
-                    VALUES (%s, %s, %s, %s, %s)
-                ''', (nombre_apellido, dni, direccion, barrio, telefono))
-                tutor_id = cursor.lastrowid
+                if self.db_type == 'postgresql':
+                    cursor.execute('''
+                        INSERT INTO tutores (nombre_apellido, dni, direccion, barrio, telefono)
+                        VALUES (%s, %s, %s, %s, %s)
+                        RETURNING id
+                    ''', (nombre_apellido, dni, direccion, barrio, telefono))
+                    tutor_id = self.get_lastrowid(cursor)
+                else:
+                    cursor.execute('''
+                        INSERT INTO tutores (nombre_apellido, dni, direccion, barrio, telefono)
+                        VALUES (%s, %s, %s, %s, %s)
+                    ''', (nombre_apellido, dni, direccion, barrio, telefono))
+                    tutor_id = cursor.lastrowid
             
             # Actualizar castración
             cursor.execute('''
