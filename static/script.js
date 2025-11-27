@@ -634,10 +634,23 @@ function formatearFecha(fecha) {
     
     // Si es un string con formato ISO (2025-11-27) o fecha completa
     if (typeof fecha === 'string') {
-        // Extraer solo la parte de la fecha si viene con hora
+        // Si viene en formato GMT (Thu, 27 Nov 2025 00:00:00 GMT)
+        if (fecha.includes('GMT') || fecha.includes(',')) {
+            const date = new Date(fecha);
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}/${month}/${year}`;
+        }
+        
+        // Extraer solo la parte de la fecha si viene con hora (2025-11-27T00:00:00)
         const soloFecha = fecha.split('T')[0].split(' ')[0];
-        const [year, month, day] = soloFecha.split('-');
-        return `${day}/${month}/${year}`;
+        
+        // Si tiene formato YYYY-MM-DD
+        if (soloFecha.includes('-')) {
+            const [year, month, day] = soloFecha.split('-');
+            return `${day}/${month}/${year}`;
+        }
     }
     
     // Si es un objeto Date
