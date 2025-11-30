@@ -432,9 +432,21 @@ def obtener_auditoria():
         # Convertir a formato JSON
         resultado = []
         for log in logs:
+            # Convertir fecha_hora a string ISO si es necesario
+            fecha_hora = log[1]
+            if isinstance(fecha_hora, datetime):
+                fecha_hora = fecha_hora.isoformat()
+            elif isinstance(fecha_hora, str):
+                # Si ya es string, asegurarse que esté en formato ISO
+                try:
+                    dt = datetime.fromisoformat(fecha_hora.replace(' ', 'T'))
+                    fecha_hora = dt.isoformat()
+                except:
+                    pass  # Si falla, usar el valor original
+            
             resultado.append({
                 'id': log[0],
-                'fecha_hora': log[1],
+                'fecha_hora': fecha_hora,
                 'tipo_operacion': log[2],
                 'tabla': log[3],
                 'registro_id': log[4],

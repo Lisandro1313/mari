@@ -680,7 +680,7 @@ function renderChart(canvasId, type, data, title) {
 // ===== UTILIDADES =====
 function formatearFecha(fecha) {
     if (!fecha) return 'No especificada';
-    
+
     // Si es un string con formato ISO (2025-11-27) o fecha completa
     if (typeof fecha === 'string') {
         // Si viene en formato GMT (Thu, 27 Nov 2025 00:00:00 GMT)
@@ -691,17 +691,17 @@ function formatearFecha(fecha) {
             const year = date.getFullYear();
             return `${day}/${month}/${year}`;
         }
-        
+
         // Extraer solo la parte de la fecha si viene con hora (2025-11-27T00:00:00)
         const soloFecha = fecha.split('T')[0].split(' ')[0];
-        
+
         // Si tiene formato YYYY-MM-DD
         if (soloFecha.includes('-')) {
             const [year, month, day] = soloFecha.split('-');
             return `${day}/${month}/${year}`;
         }
     }
-    
+
     // Si es un objeto Date
     if (fecha instanceof Date) {
         const day = String(fecha.getDate()).padStart(2, '0');
@@ -709,7 +709,7 @@ function formatearFecha(fecha) {
         const year = fecha.getFullYear();
         return `${day}/${month}/${year}`;
     }
-    
+
     return fecha.toString();
 }
 
@@ -750,14 +750,26 @@ async function cargarAuditoria() {
         html += '</tr></thead><tbody>';
 
         logs.forEach(log => {
-            const fecha = new Date(log.fecha_hora + 'Z').toLocaleString('es-AR', {
-                timeZone: 'America/Argentina/Buenos_Aires',
+            // Parsear fecha de forma robusta
+            let fechaObj;
+            if (log.fecha_hora.includes('T')) {
+                // Formato ISO: 2025-11-30T10:15:30 o 2025-11-30T10:15:30.000000
+                fechaObj = new Date(log.fecha_hora);
+            } else if (log.fecha_hora.includes(' ')) {
+                // Formato SQL: 2025-11-30 10:15:30
+                fechaObj = new Date(log.fecha_hora.replace(' ', 'T'));
+            } else {
+                fechaObj = new Date(log.fecha_hora);
+            }
+
+            const fecha = fechaObj.toLocaleString('es-AR', {
                 year: 'numeric',
                 month: '2-digit',
                 day: '2-digit',
                 hour: '2-digit',
                 minute: '2-digit',
-                second: '2-digit'
+                second: '2-digit',
+                hour12: false
             });
             const tipo = log.tipo_operacion;
             const badgeClass = tipo === 'DELETE' ? 'delete' : 'update';
