@@ -16,10 +16,32 @@ def fix_database():
     try:
         if db.db_type == 'postgresql':
             print("🔧 Eliminando constraint UNIQUE de DNI en PostgreSQL...")
-            # Eliminar constraint único en PostgreSQL
-            cursor.execute("""
-                ALTER TABLE tutores DROP CONSTRAINT IF EXISTS tutores_dni_key;
-            """)
+            # Eliminar constraint único en PostgreSQL - intentar todos los nombres posibles
+            try:
+                cursor.execute("ALTER TABLE tutores DROP CONSTRAINT IF EXISTS tutores_dni_key;")
+                print("  ✓ Eliminado tutores_dni_key")
+            except Exception as e:
+                print(f"  - No se pudo eliminar tutores_dni_key: {e}")
+            
+            try:
+                cursor.execute("ALTER TABLE tutores DROP CONSTRAINT IF EXISTS tutores_dni_key1;")
+                print("  ✓ Eliminado tutores_dni_key1")
+            except Exception as e:
+                print(f"  - No se pudo eliminar tutores_dni_key1: {e}")
+            
+            try:
+                cursor.execute("ALTER TABLE tutores DROP CONSTRAINT IF EXISTS unique_dni;")
+                print("  ✓ Eliminado unique_dni")
+            except Exception as e:
+                print(f"  - No se pudo eliminar unique_dni: {e}")
+            
+            # También verificar índices únicos
+            try:
+                cursor.execute("DROP INDEX IF EXISTS tutores_dni_key;")
+                print("  ✓ Eliminado índice tutores_dni_key")
+            except Exception as e:
+                print(f"  - No se pudo eliminar índice: {e}")
+            
             conn.commit()
             print("✅ Constraint eliminado en PostgreSQL")
             
