@@ -236,16 +236,24 @@ class Database:
             
             datos_anteriores = f"#{row_anterior[1]} - {row_anterior[4]} ({row_anterior[5]}) - Tutor: {row_anterior[-2]}"
             
-            # Actualizar SOLO el tutor de esta atención específica (no afecta otros registros)
-            tutor_id = row_anterior[8]  # El tutor_id actual de esta atención
+            # SIEMPRE crear un tutor NUEVO al editar (evita afectar otros registros que compartan tutor)
             dni = datos.get('dni')
             
-            cursor.execute(self.convert_query('''
-                UPDATE tutores 
-                SET nombre_apellido = %s, dni = %s, direccion = %s, barrio = %s, telefono = %s
-                WHERE id = %s
-            '''), (datos.get('nombre_apellido'), dni, datos.get('direccion', ''),
-                  datos.get('barrio', ''), datos.get('telefono', ''), tutor_id))
+            if self.db_type == 'postgresql':
+                cursor.execute(self.convert_query('''
+                    INSERT INTO tutores (nombre_apellido, dni, direccion, barrio, telefono)
+                    VALUES (%s, %s, %s, %s, %s)
+                    RETURNING id
+                '''), (datos.get('nombre_apellido'), dni, datos.get('direccion', ''),
+                      datos.get('barrio', ''), datos.get('telefono', '')))
+                nuevo_tutor_id = cursor.fetchone()[0]
+            else:
+                cursor.execute(self.convert_query('''
+                    INSERT INTO tutores (nombre_apellido, dni, direccion, barrio, telefono)
+                    VALUES (%s, %s, %s, %s, %s)
+                '''), (datos.get('nombre_apellido'), dni, datos.get('direccion', ''),
+                      datos.get('barrio', ''), datos.get('telefono', '')))
+                nuevo_tutor_id = cursor.lastrowid
             
             # Actualizar datos de la atención
             cursor.execute(self.convert_query('''
@@ -258,7 +266,7 @@ class Database:
                   datos.get('sexo'), datos.get('edad', ''), datos.get('motivo', ''), 
                   datos.get('diagnostico', ''), datos.get('tratamiento', ''), 
                   datos.get('derivacion', ''), datos.get('observaciones', ''), 
-                  tutor_id, numero))
+                  nuevo_tutor_id, numero))
             
             # Registrar en auditoría
             datos_nuevos = f"#{numero} - {datos.get('nombre_animal')} ({datos.get('especie')})"
