@@ -7,7 +7,7 @@ function toggleMenu() {
     const sidebar = document.getElementById('sidebar');
     const menuToggle = document.querySelector('.menu-toggle');
     const menuOverlay = document.querySelector('.menu-overlay');
-    
+
     sidebar.classList.toggle('active');
     menuToggle.classList.toggle('active');
     menuOverlay.classList.toggle('active');
@@ -85,13 +85,13 @@ function showSection(sectionName) {
     const sidebar = document.getElementById('sidebar');
     const menuToggle = document.querySelector('.menu-toggle');
     const menuOverlay = document.querySelector('.menu-overlay');
-    
+
     if (sidebar.classList.contains('active')) {
         sidebar.classList.remove('active');
         menuToggle.classList.remove('active');
         menuOverlay.classList.remove('active');
     }
-    
+
     // Actualizar nav
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
     document.querySelector(`[data-section="${sectionName}"]`).classList.add('active');
@@ -299,9 +299,15 @@ function setupFormHandlers() {
                 e.target.reset();
                 establecerFechaActual();
 
-                // Limpiar modo edición
+                // Limpiar modo edición y restaurar título
                 if (isEditing) {
                     delete window.editandoNumero;
+                    document.getElementById('section-title').textContent = 'Nueva Atención';
+                    document.getElementById('section-subtitle').textContent = 'Registrar castración o atención primaria';
+                    const submitBtn = document.querySelector('#form-atencion button[type="submit"]');
+                    if (submitBtn) {
+                        submitBtn.textContent = 'Registrar Atención';
+                    }
                     cargarDashboard();
                 } else {
                     cargarSiguienteNumero();
@@ -365,6 +371,17 @@ function limpiarFormulario() {
         else opt.classList.remove('active');
     });
     document.getElementById('section-atencion-primaria').style.display = 'none';
+    
+    // Restaurar título y botón si estaba editando
+    if (window.editandoNumero) {
+        delete window.editandoNumero;
+        document.getElementById('section-title').textContent = 'Nueva Atención';
+        document.getElementById('section-subtitle').textContent = 'Registrar castración o atención primaria';
+        const submitBtn = document.querySelector('#form-atencion button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.textContent = 'Registrar Atención';
+        }
+    }
 }
 
 // ===== BÚSQUEDA =====
@@ -381,7 +398,7 @@ async function editarRegistro(numero) {
 
         // Llenar formulario con datos existentes
         document.getElementById('numero').value = data.numero;
-        
+
         // Convertir fecha al formato YYYY-MM-DD para el input type="date"
         let fechaFormateada = data.fecha;
         if (data.fecha) {
@@ -439,6 +456,16 @@ async function editarRegistro(numero) {
 
         // Cambiar a sección de registro
         showSection('registro');
+
+        // Cambiar título y apariencia para modo edición
+        document.getElementById('section-title').textContent = `Edición de Registro #${numero}`;
+        document.getElementById('section-subtitle').textContent = 'Modificar datos de la atención';
+        
+        // Cambiar texto del botón
+        const submitBtn = document.querySelector('#form-atencion button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.textContent = 'Guardar Cambios';
+        }
 
         // Guardar número para edición
         window.editandoNumero = numero;
@@ -551,7 +578,7 @@ async function cargarEstadisticas() {
 
         // Actualizar totales en tarjetas
         actualizarTotalesEstadisticas(stats);
-        
+
         renderizarGraficos(stats);
     } catch (error) {
         mostrarNotificacion('Error al cargar estadísticas', 'error');
@@ -562,19 +589,19 @@ function actualizarTotalesEstadisticas(stats) {
     // Total de atenciones
     const totalAtenciones = stats.total || 0;
     document.getElementById('total-atenciones').textContent = totalAtenciones;
-    
+
     // Castraciones y Atención Primaria
     const castraciones = stats.por_tipo ? (stats.por_tipo.find(t => t[0] === 'castracion')?.[1] || 0) : 0;
     const atencionPrimaria = stats.por_tipo ? (stats.por_tipo.find(t => t[0] === 'atencion_primaria')?.[1] || 0) : 0;
     document.getElementById('total-castraciones').textContent = castraciones;
     document.getElementById('total-atencion-primaria').textContent = atencionPrimaria;
-    
+
     // Caninos y Felinos
     const caninos = stats.por_especie ? (stats.por_especie.find(e => e[0] === 'Canino')?.[1] || 0) : 0;
     const felinos = stats.por_especie ? (stats.por_especie.find(e => e[0] === 'Felino')?.[1] || 0) : 0;
     document.getElementById('total-caninos').textContent = caninos;
     document.getElementById('total-felinos').textContent = felinos;
-    
+
     // Hembras y Machos
     const hembras = stats.por_sexo ? (stats.por_sexo.find(s => s[0] === 'Hembra')?.[1] || 0) : 0;
     const machos = stats.por_sexo ? (stats.por_sexo.find(s => s[0] === 'Macho')?.[1] || 0) : 0;

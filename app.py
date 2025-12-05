@@ -263,10 +263,25 @@ def obtener_atencion(numero):
             return jsonify({'success': False, 'message': 'Registro no encontrado'}), 404
         
         row = resultados[0]
+        
+        # Formatear fecha para input type="date" (YYYY-MM-DD)
+        fecha = row[2]
+        if isinstance(fecha, str):
+            # Si viene en formato DD/MM/YYYY
+            if '/' in fecha:
+                partes = fecha.split('/')
+                if len(partes) == 3:
+                    fecha = f"{partes[2].split(' ')[0]}-{partes[1].zfill(2)}-{partes[0].zfill(2)}"
+            # Si viene con hora, extraer solo la fecha
+            elif ' ' in fecha:
+                fecha = fecha.split(' ')[0]
+            elif 'T' in fecha:
+                fecha = fecha.split('T')[0]
+        
         atencion = {
             'id': row[0],
             'numero': row[1],
-            'fecha': row[2],
+            'fecha': fecha,
             'tipo_atencion': row[3],
             'nombre_animal': row[4],
             'especie': row[5],
