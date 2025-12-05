@@ -236,24 +236,16 @@ class Database:
             
             datos_anteriores = f"#{row_anterior[1]} - {row_anterior[4]} ({row_anterior[5]}) - Tutor: {row_anterior[-2]}"
             
-            # Crear un NUEVO tutor para esta atención (evita sobrescribir barrios de otros registros)
+            # Actualizar SOLO el tutor de esta atención específica (no afecta otros registros)
+            tutor_id = row_anterior[8]  # El tutor_id actual de esta atención
             dni = datos.get('dni')
             
-            if self.db_type == 'postgresql':
-                cursor.execute(self.convert_query('''
-                    INSERT INTO tutores (nombre_apellido, dni, direccion, barrio, telefono)
-                    VALUES (%s, %s, %s, %s, %s)
-                    RETURNING id
-                '''), (datos.get('nombre_apellido'), dni, datos.get('direccion', ''),
-                      datos.get('barrio', ''), datos.get('telefono', '')))
-                tutor_id = cursor.fetchone()[0]
-            else:
-                cursor.execute(self.convert_query('''
-                    INSERT INTO tutores (nombre_apellido, dni, direccion, barrio, telefono)
-                    VALUES (%s, %s, %s, %s, %s)
-                '''), (datos.get('nombre_apellido'), dni, datos.get('direccion', ''),
-                      datos.get('barrio', ''), datos.get('telefono', '')))
-                tutor_id = cursor.lastrowid
+            cursor.execute(self.convert_query('''
+                UPDATE tutores 
+                SET nombre_apellido = %s, dni = %s, direccion = %s, barrio = %s, telefono = %s
+                WHERE id = %s
+            '''), (datos.get('nombre_apellido'), dni, datos.get('direccion', ''),
+                  datos.get('barrio', ''), datos.get('telefono', ''), tutor_id))
             
             # Actualizar datos de la atención
             cursor.execute(self.convert_query('''
