@@ -381,7 +381,28 @@ async function editarRegistro(numero) {
 
         // Llenar formulario con datos existentes
         document.getElementById('numero').value = data.numero;
-        document.getElementById('fecha').value = data.fecha;
+        
+        // Convertir fecha al formato YYYY-MM-DD para el input type="date"
+        let fechaFormateada = data.fecha;
+        if (data.fecha) {
+            // Si viene en formato DD/MM/YYYY o con hora
+            if (data.fecha.includes('/')) {
+                const partes = data.fecha.split('/');
+                if (partes.length === 3) {
+                    fechaFormateada = `${partes[2].split(' ')[0]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
+                }
+            } else if (data.fecha.includes('T')) {
+                // Si viene en formato ISO
+                fechaFormateada = data.fecha.split('T')[0];
+            } else if (data.fecha.includes(' ')) {
+                // Si viene en formato YYYY-MM-DD HH:MM:SS
+                fechaFormateada = data.fecha.split(' ')[0];
+            } else if (data.fecha.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                // Ya está en formato correcto
+                fechaFormateada = data.fecha;
+            }
+        }
+        document.getElementById('fecha').value = fechaFormateada;
 
         // Seleccionar tipo de atención
         const tipoRadios = document.getElementsByName('tipo_atencion');
