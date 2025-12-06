@@ -329,10 +329,10 @@ function setupFormHandlers() {
                     if (submitBtn) {
                         submitBtn.textContent = 'Registrar Atención';
                     }
-                    incrementarNumero(); // Incrementar número después de editar
+                    cargarSiguienteNumero(); // Cargar siguiente número del servidor
                     cargarDashboard();
                 } else {
-                    incrementarNumero(); // Incrementar número después de crear
+                    cargarSiguienteNumero(); // Cargar siguiente número del servidor
                 }
 
                 document.querySelectorAll('.tipo-option').forEach((opt, i) => {
@@ -387,7 +387,7 @@ function setupFormHandlers() {
 function limpiarFormulario() {
     document.getElementById('form-atencion').reset();
     establecerFechaActual();
-    incrementarNumero(); // Solo incrementar, no consultar servidor
+    cargarSiguienteNumero(); // Cargar siguiente número del servidor
     document.querySelectorAll('.tipo-option').forEach((opt, i) => {
         if (i === 0) opt.classList.add('active');
         else opt.classList.remove('active');
