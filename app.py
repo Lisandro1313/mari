@@ -17,6 +17,26 @@ app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hora
 database_url = os.environ.get('DATABASE_URL')
 db = Database(db_url=database_url) if database_url else Database(db_url='sqlite:///mari.db')
 
+# EJECUTAR MIGRACIÓN: Eliminar constraint UNIQUE de DNI (solo una vez al inicio)
+if database_url and 'postgresql' in database_url:
+    try:
+        print("🔧 Eliminando constraint UNIQUE de DNI en PostgreSQL...")
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        # Intentar eliminar el constraint
+        try:
+            cursor.execute("ALTER TABLE tutores DROP CONSTRAINT IF EXISTS tutores_dni_key;")
+            print("  ✓ Constraint tutores_dni_key eliminado")
+        except Exception as e:
+            print(f"  - Error al eliminar constraint: {e}")
+        
+        conn.commit()
+        conn.close()
+        print("✅ Migración completada")
+    except Exception as e:
+        print(f"❌ Error en migración: {e}")
+
 # Credenciales de login
 USUARIO = 'mariateresa'
 PASSWORD = 'mateca'
