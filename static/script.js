@@ -65,7 +65,7 @@ async function cargarSiguienteNumero() {
         const data = await response.json();
         const numeroInput = document.getElementById('numero');
         numeroInput.value = data.numero;
-        
+
         // Prevenir edición manual
         numeroInput.addEventListener('keydown', (e) => e.preventDefault());
         numeroInput.addEventListener('paste', (e) => e.preventDefault());
@@ -120,6 +120,12 @@ function showSection(sectionName) {
 
     // Cargar datos específicos
     if (sectionName === 'dashboard') cargarDashboard();
+    if (sectionName === 'registro') {
+        // Si no está editando, cargar siguiente número
+        if (!window.editandoNumero) {
+            cargarSiguienteNumero();
+        }
+    }
     if (sectionName === 'estadisticas') cargarEstadisticas();
     if (sectionName === 'turnos') cargarTodosTurnos();
     if (sectionName === 'auditoria') cargarAuditoria();
@@ -313,6 +319,7 @@ function setupFormHandlers() {
                     if (submitBtn) {
                         submitBtn.textContent = 'Registrar Atención';
                     }
+                    cargarSiguienteNumero(); // Cargar siguiente número después de editar
                     cargarDashboard();
                 } else {
                     cargarSiguienteNumero();
