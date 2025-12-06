@@ -66,12 +66,21 @@ async function cargarSiguienteNumero() {
         const numeroInput = document.getElementById('numero');
         numeroInput.value = data.numero;
 
-        // Prevenir edición manual
-        numeroInput.addEventListener('keydown', (e) => e.preventDefault());
-        numeroInput.addEventListener('paste', (e) => e.preventDefault());
+        // Prevenir edición manual solo si no se configuró antes
+        if (!numeroInput.dataset.configured) {
+            numeroInput.addEventListener('keydown', (e) => e.preventDefault());
+            numeroInput.addEventListener('paste', (e) => e.preventDefault());
+            numeroInput.dataset.configured = 'true';
+        }
     } catch (error) {
         console.error('Error al cargar siguiente número:', error);
     }
+}
+
+function incrementarNumero() {
+    const numeroInput = document.getElementById('numero');
+    const numeroActual = parseInt(numeroInput.value) || 0;
+    numeroInput.value = numeroActual + 1;
 }
 
 // ===== NAVEGACIÓN =====
@@ -121,8 +130,9 @@ function showSection(sectionName) {
     // Cargar datos específicos
     if (sectionName === 'dashboard') cargarDashboard();
     if (sectionName === 'registro') {
-        // Si no está editando, cargar siguiente número
-        if (!window.editandoNumero) {
+        // Solo cargar número del servidor si el campo está vacío
+        const numeroInput = document.getElementById('numero');
+        if (!numeroInput.value && !window.editandoNumero) {
             cargarSiguienteNumero();
         }
     }
@@ -319,10 +329,10 @@ function setupFormHandlers() {
                     if (submitBtn) {
                         submitBtn.textContent = 'Registrar Atención';
                     }
-                    cargarSiguienteNumero(); // Cargar siguiente número después de editar
+                    incrementarNumero(); // Incrementar número después de editar
                     cargarDashboard();
                 } else {
-                    cargarSiguienteNumero();
+                    incrementarNumero(); // Incrementar número después de crear
                 }
 
                 document.querySelectorAll('.tipo-option').forEach((opt, i) => {
@@ -377,7 +387,7 @@ function setupFormHandlers() {
 function limpiarFormulario() {
     document.getElementById('form-atencion').reset();
     establecerFechaActual();
-    cargarSiguienteNumero();
+    incrementarNumero(); // Solo incrementar, no consultar servidor
     document.querySelectorAll('.tipo-option').forEach((opt, i) => {
         if (i === 0) opt.classList.add('active');
         else opt.classList.remove('active');
