@@ -63,7 +63,12 @@ async function cargarSiguienteNumero() {
     try {
         const response = await fetch('/api/siguiente-numero');
         const data = await response.json();
-        document.getElementById('numero').value = data.numero;
+        const numeroInput = document.getElementById('numero');
+        numeroInput.value = data.numero;
+        
+        // Prevenir edición manual
+        numeroInput.addEventListener('keydown', (e) => e.preventDefault());
+        numeroInput.addEventListener('paste', (e) => e.preventDefault());
     } catch (error) {
         console.error('Error al cargar siguiente número:', error);
     }
@@ -371,7 +376,7 @@ function limpiarFormulario() {
         else opt.classList.remove('active');
     });
     document.getElementById('section-atencion-primaria').style.display = 'none';
-    
+
     // Restaurar título y botón si estaba editando
     if (window.editandoNumero) {
         delete window.editandoNumero;
@@ -460,7 +465,7 @@ async function editarRegistro(numero) {
         // Cambiar título y apariencia para modo edición
         document.getElementById('section-title').textContent = `Edición de Registro #${numero}`;
         document.getElementById('section-subtitle').textContent = 'Modificar datos de la atención';
-        
+
         // Cambiar texto del botón
         const submitBtn = document.querySelector('#form-atencion button[type="submit"]');
         if (submitBtn) {
