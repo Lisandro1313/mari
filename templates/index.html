@@ -429,7 +429,11 @@
                         <h3>🗺️ Mapa de Castraciones por Barrio</h3>
                         <p class="card-subtitle">Visualización geográfica de cobertura en Gualeguaychú</p>
                     </div>
-                    <button onclick="cargarMapa()" class="btn btn-primary">🔄 Actualizar</button>
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="activarModoAgregar()" class="btn btn-success" id="btn-agregar-barrio">➕ Agregar Barrio</button>
+                        <button onclick="toggleModoEdicion()" class="btn btn-secondary" id="btn-editar-barrios">✏️ Editar</button>
+                        <button onclick="cargarMapa()" class="btn btn-primary">🔄 Actualizar</button>
+                    </div>
                 </div>
                 <div class="map-container">
                     <div id="map"></div>
@@ -540,6 +544,84 @@
 
     <!-- NOTIFICATION -->
     <div id="notification" class="notification"></div>
+
+    <!-- MODAL AGREGAR/EDITAR BARRIO EN MAPA -->
+    <div class="modal-overlay" id="modal-barrio-overlay" onclick="cerrarModalBarrio()"></div>
+    <div class="modal" id="modal-barrio">
+        <div class="modal-header">
+            <h3 id="modal-barrio-titulo">➕ Agregar Barrio al Mapa</h3>
+            <button class="modal-close" onclick="cerrarModalBarrio()">×</button>
+        </div>
+        <div class="modal-body">
+            <form id="form-barrio-mapa">
+                <div class="form-group">
+                    <label>Seleccionar Barrio Existente</label>
+                    <select id="select-barrio-mapa" onchange="seleccionarBarrioMapa()">
+                        <option value="">-- Seleccionar --</option>
+                    </select>
+                    <small style="color: #666; display: block; margin-top: 5px;">
+                        Se agruparán automáticamente variantes (mayúsculas, tildes, etc.)
+                    </small>
+                </div>
+                
+                <div style="text-align: center; margin: 15px 0; color: #999;">
+                    <strong>O</strong>
+                </div>
+                
+                <div class="form-group">
+                    <label>Nombre de Nuevo Barrio</label>
+                    <input type="text" id="nuevo-barrio-nombre" placeholder="Ej: Barrio San Jorge">
+                </div>
+                
+                <div class="form-group">
+                    <label>Color del Marcador</label>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <label class="color-option">
+                            <input type="radio" name="color-barrio" value="#FF6B6B" checked>
+                            <span class="color-preview" style="background: #FF6B6B;"></span>
+                        </label>
+                        <label class="color-option">
+                            <input type="radio" name="color-barrio" value="#4ECDC4">
+                            <span class="color-preview" style="background: #4ECDC4;"></span>
+                        </label>
+                        <label class="color-option">
+                            <input type="radio" name="color-barrio" value="#45B7D1">
+                            <span class="color-preview" style="background: #45B7D1;"></span>
+                        </label>
+                        <label class="color-option">
+                            <input type="radio" name="color-barrio" value="#FFA07A">
+                            <span class="color-preview" style="background: #FFA07A;"></span>
+                        </label>
+                        <label class="color-option">
+                            <input type="radio" name="color-barrio" value="#96CEB4">
+                            <span class="color-preview" style="background: #96CEB4;"></span>
+                        </label>
+                        <label class="color-option">
+                            <input type="radio" name="color-barrio" value="#FFEAA7">
+                            <span class="color-preview" style="background: #FFEAA7;"></span>
+                        </label>
+                        <label class="color-option">
+                            <input type="radio" name="color-barrio" value="#A29BFE">
+                            <span class="color-preview" style="background: #A29BFE;"></span>
+                        </label>
+                        <label class="color-option">
+                            <input type="radio" name="color-barrio" value="#FD79A8">
+                            <span class="color-preview" style="background: #FD79A8;"></span>
+                        </label>
+                    </div>
+                </div>
+                
+                <input type="hidden" id="barrio-lat">
+                <input type="hidden" id="barrio-lng">
+                <input type="hidden" id="barrio-edit-id">
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" onclick="cerrarModalBarrio()" class="btn btn-secondary">Cancelar</button>
+            <button type="button" onclick="guardarBarrioMapa()" class="btn btn-primary">💾 Guardar</button>
+            <button type="button" onclick="eliminarBarrioMapa()" class="btn btn-danger" id="btn-eliminar-barrio" style="display: none;">🗑️ Eliminar</button>
+        </div>
+    </div>
 
         <script src="{{ url_for('static', filename='script.js') }}?v=3.1"></script>
 </body>

@@ -913,32 +913,221 @@ async function exportarExcel() {
     }
 }
 
-// ===== MAPA INTERACTIVO =====
-// Coordenadas aproximadas de barrios de Gualeguaychú, Entre Ríos
-const barriosGualeguaychu = {
-    "Centro": { lat: -33.0095, lng: -58.5173, color: "#FF6B6B" },
-    "Pueblo Nuevo": { lat: -33.0150, lng: -58.5250, color: "#4ECDC4" },
-    "Barrio Parque": { lat: -33.0000, lng: -58.5100, color: "#45B7D1" },
-    "Pueblo Belgrano": { lat: -33.0200, lng: -58.5300, color: "#FFA07A" },
-    "Villa Elisa": { lat: -32.9950, lng: -58.5050, color: "#96CEB4" },
-    "Larralde": { lat: -33.0180, lng: -58.5080, color: "#FFEAA7" },
-    "San José": { lat: -33.0250, lng: -58.5200, color: "#DFE6E9" },
-    "San Antonio": { lat: -33.0120, lng: -58.5350, color: "#A29BFE" },
-    "San Martín": { lat: -33.0050, lng: -58.5280, color: "#FD79A8" },
-    "Rocamora": { lat: -33.0300, lng: -58.5150, color: "#FDCB6E" },
-    "Yapeyu": { lat: -32.9980, lng: -58.5200, color: "#6C5CE7" },
-    "Juan Manuel de Rosas": { lat: -33.0080, lng: -58.5400, color: "#00B894" },
-    "Villa Libertad": { lat: -33.0350, lng: -58.5250, color: "#E17055" },
-    "Ramón Carrillo": { lat: -33.0220, lng: -58.5380, color: "#74B9FF" },
-    "Pueblo Liebig": { lat: -33.0450, lng: -58.5100, color: "#55EFC4" },
-    "Villa Mariano Moreno": { lat: -33.0280, lng: -58.5450, color: "#FFAAA5" },
-    "Barrio Ayuí": { lat: -33.0380, lng: -58.5350, color: "#A4B787" }
-};
-
+// ===== MAPA INTERACTIVO EDITABLE =====
 let mapaLeaflet = null;
+let barriosPersonalizados = [];
+let modoAgregar = false;
+let modoEdicion = false;
+let markerTemporal = null;
 
+// Cargar barrios personalizados desde localStorage
+function cargarBarriosPersonalizados() {
+    const guardados = localStorage.getItem('barriosMapaPersonalizados');
+    if (guardados) {
+        barriosPersonalizados = JSON.parse(guardados);
+    }
+}
+
+// Guardar barrios en localStorage
+function guardarBarriosPersonalizados() {
+    localStorage.setItem('barriosMapaPersonalizados', JSON.stringify(barriosPersonalizados));
+}
+
+// Activar modo agregar barrio
+function activarModoAgregar() {
+    modoAgregar = !modoAgregar;
+    const btn = document.getElementById('btn-agregar-barrio');
+    const mapDiv = document.getElementById('map');
+    
+    if (modoAgregar) {
+        btn.classList.add('active');
+        btn.textContent = '✖️ Cancelar';
+        mapDiv.classList.add('map-adding-mode');
+        mostrarNotificacion('Haga clic en el mapa para ubicar el barrio', 'info');
+        
+        // Agregar evento de click al mapa
+        mapaLeaflet.on('click', onMapClickAgregar);
+    } else {
+        btn.classList.remove('active');
+        btn.textContent = '➕ Agregar Barrio';
+        mapDiv.classList.remove('map-adding-mode');
+        mapaLeaflet.off('click', onMapClickAgregar);
+        
+        // Remover marker temporal si existe
+        if (markerTemporal) {
+            mapaLeaflet.removeLayer(markerTemporal);
+            markerTemporal = null;
+        }
+    }
+}
+
+// Toggle modo edición
+function toggleModoEdicion() {
+    modoEdicion = !modoEdicion;
+    const btn = document.getElementById('btn-editar-barrios');
+    
+    if (modoEdicion) {
+        btn.classList.add('active');
+        btn.textContent = '✖️ Cancelar Edición';
+        mostrarNotificacion('Haga clic en un círculo para editarlo o eliminarlo', 'info');
+    } else {
+        btn.classList.remove('active');
+        btn.textContent = '✏️ Editar';
+    }
+}
+
+// Click en el mapa para agregar barrio
+async function onMapClickAgregar(e) {
+    const { lat, lng } = e.latlng;
+    
+    // Agregar marker temporal
+    if (markerTemporal) {
+        mapaLeaflet.removeLayer(markerTemporal);
+    }
+    
+    markerTemporal = L.marker([lat, lng], {
+        icon: L.divIcon({
+            className: 'temp-marker',
+            html: '<div style="background: #3498db; width: 30px; height: 30px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.5);"></div>',
+            iconSize: [30, 30]
+        })
+    }).addTo(mapaLeaflet);
+    
+    // Cargar lista de barrios
+    await cargarListaBarriosModal();
+    
+    // Abrir modal
+    document.getElementById('barrio-lat').value = lat;
+    document.getElementById('barrio-lng').value = lng;
+    document.getElementById('barrio-edit-id').value = '';
+    document.getElementById('modal-barrio-titulo').textContent = '➕ Agregar Barrio al Mapa';
+    document.getElementById('btn-eliminar-barrio').style.display = 'none';
+    document.getElementById('select-barrio-mapa').value = '';
+    document.getElementById('nuevo-barrio-nombre').value = '';
+    document.getElementById('modal-barrio').classList.add('show');
+    document.getElementById('modal-barrio-overlay').style.display = 'block';
+}
+
+// Cargar lista de barrios en el modal
+async function cargarListaBarriosModal() {
+    try {
+        const response = await fetch('/api/barrios/lista');
+        const barrios = await response.json();
+        
+        const select = document.getElementById('select-barrio-mapa');
+        select.innerHTML = '<option value="">-- Seleccionar --</option>';
+        
+        barrios.forEach(barrio => {
+            const option = document.createElement('option');
+            option.value = barrio.nombre;
+            option.textContent = `${barrio.nombre} (${barrio.registros} registros)`;
+            if (barrio.variantes.length > 1) {
+                option.title = `Variantes: ${barrio.variantes.join(', ')}`;
+            }
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error al cargar barrios:', error);
+    }
+}
+
+// Seleccionar barrio del dropdown
+function seleccionarBarrioMapa() {
+    const select = document.getElementById('select-barrio-mapa');
+    const nuevoInput = document.getElementById('nuevo-barrio-nombre');
+    
+    if (select.value) {
+        nuevoInput.value = '';
+        nuevoInput.disabled = true;
+    } else {
+        nuevoInput.disabled = false;
+    }
+}
+
+// Guardar barrio en el mapa
+function guardarBarrioMapa() {
+    const select = document.getElementById('select-barrio-mapa');
+    const nuevoNombre = document.getElementById('nuevo-barrio-nombre').value.trim();
+    const lat = parseFloat(document.getElementById('barrio-lat').value);
+    const lng = parseFloat(document.getElementById('barrio-lng').value);
+    const editId = document.getElementById('barrio-edit-id').value;
+    const colorSeleccionado = document.querySelector('input[name="color-barrio"]:checked').value;
+    
+    // Validar
+    const nombreBarrio = select.value || nuevoNombre;
+    if (!nombreBarrio) {
+        mostrarNotificacion('Debe seleccionar un barrio o ingresar uno nuevo', 'error');
+        return;
+    }
+    
+    if (editId) {
+        // Editar existente
+        const index = barriosPersonalizados.findIndex(b => b.id === editId);
+        if (index !== -1) {
+            barriosPersonalizados[index] = {
+                id: editId,
+                nombre: nombreBarrio,
+                lat,
+                lng,
+                color: colorSeleccionado
+            };
+        }
+    } else {
+        // Agregar nuevo
+        barriosPersonalizados.push({
+            id: Date.now().toString(),
+            nombre: nombreBarrio,
+            lat,
+            lng,
+            color: colorSeleccionado
+        });
+    }
+    
+    guardarBarriosPersonalizados();
+    cerrarModalBarrio();
+    cargarMapa();
+    
+    // Desactivar modo agregar
+    if (modoAgregar) {
+        activarModoAgregar();
+    }
+    
+    mostrarNotificacion('Barrio guardado exitosamente', 'success');
+}
+
+// Eliminar barrio del mapa
+function eliminarBarrioMapa() {
+    if (!confirm('¿Está seguro que desea eliminar este barrio del mapa?')) {
+        return;
+    }
+    
+    const editId = document.getElementById('barrio-edit-id').value;
+    barriosPersonalizados = barriosPersonalizados.filter(b => b.id !== editId);
+    guardarBarriosPersonalizados();
+    cerrarModalBarrio();
+    cargarMapa();
+    mostrarNotificacion('Barrio eliminado del mapa', 'success');
+}
+
+// Cerrar modal
+function cerrarModalBarrio() {
+    document.getElementById('modal-barrio').classList.remove('show');
+    document.getElementById('modal-barrio-overlay').style.display = 'none';
+    document.getElementById('nuevo-barrio-nombre').disabled = false;
+    
+    // Remover marker temporal
+    if (markerTemporal) {
+        mapaLeaflet.removeLayer(markerTemporal);
+        markerTemporal = null;
+    }
+}
+
+// Cargar mapa principal
 async function cargarMapa() {
     try {
+        // Cargar barrios personalizados
+        cargarBarriosPersonalizados();
+        
         // Fetch de datos de castraciones por barrio
         const response = await fetch('/api/estadisticas/barrios');
         const data = await response.json();
@@ -961,57 +1150,70 @@ async function cargarMapa() {
             });
         }
 
-        // Dibujar círculos para cada barrio
-        Object.keys(barriosGualeguaychu).forEach(barrio => {
-            const coords = barriosGualeguaychu[barrio];
-            const cantidad = data[barrio] || 0;
+        // Dibujar círculos para barrios personalizados
+        barriosPersonalizados.forEach(barrio => {
+            const cantidad = data[barrio.nombre] || 0;
 
-            // Determinar color y tamaño según cantidad
-            let color, radius;
+            // Determinar tamaño según cantidad
+            let radius;
             if (cantidad >= 30) {
-                color = 'rgba(255, 107, 107, 0.6)'; // Rojo - alta cobertura
                 radius = 600;
             } else if (cantidad >= 10) {
-                color = 'rgba(255, 160, 122, 0.6)'; // Naranja - media
                 radius = 400;
             } else if (cantidad > 0) {
-                color = 'rgba(78, 205, 196, 0.6)'; // Turquesa - baja
                 radius = 250;
             } else {
-                color = 'rgba(200, 200, 200, 0.4)'; // Gris - sin datos
                 radius = 150;
             }
 
-            // Ajustar radio proporcionalmente a la cantidad
+            // Ajustar radio proporcionalmente
             if (cantidad > 0) {
                 radius = Math.max(150, Math.min(800, cantidad * 15));
             }
 
-            // Crear círculo en el mapa
-            const circle = L.circle([coords.lat, coords.lng], {
-                color: cantidad > 0 ? coords.color : '#999',
-                fillColor: color,
+            // Color según cantidad
+            let fillColor;
+            if (cantidad >= 30) {
+                fillColor = 'rgba(255, 107, 107, 0.6)';
+            } else if (cantidad >= 10) {
+                fillColor = 'rgba(255, 160, 122, 0.6)';
+            } else if (cantidad > 0) {
+                fillColor = 'rgba(78, 205, 196, 0.6)';
+            } else {
+                fillColor = 'rgba(200, 200, 200, 0.4)';
+            }
+
+            // Crear círculo
+            const circle = L.circle([barrio.lat, barrio.lng], {
+                color: barrio.color,
+                fillColor: fillColor,
                 fillOpacity: 0.6,
                 radius: radius,
                 weight: cantidad > 0 ? 2 : 1,
                 dashArray: cantidad > 0 ? null : '5, 5'
             }).addTo(mapaLeaflet);
 
-            // Popup con información
+            // Popup
             circle.bindPopup(`
                 <div style="text-align: center; padding: 5px;">
-                    <strong style="font-size: 14px;">${barrio}</strong><br>
+                    <strong style="font-size: 14px;">${barrio.nombre}</strong><br>
                     <span style="font-size: 16px; color: ${cantidad > 0 ? '#2ecc71' : '#95a5a6'};">
                         ${cantidad} castración${cantidad !== 1 ? 'es' : ''}
                     </span>
+                    ${modoEdicion ? '<br><button onclick="editarBarrioCirculo(\'' + barrio.id + '\')" style="margin-top:5px;padding:5px 10px;background:#3498db;color:white;border:none;border-radius:4px;cursor:pointer;">✏️ Editar</button>' : ''}
                 </div>
             `);
 
-            // Tooltip al pasar el mouse
-            circle.bindTooltip(`${barrio}: ${cantidad}`, {
+            // Tooltip
+            circle.bindTooltip(`${barrio.nombre}: ${cantidad}`, {
                 permanent: false,
                 direction: 'top'
             });
+
+            // Click para editar en modo edición
+            if (modoEdicion) {
+                circle.on('click', () => editarBarrioCirculo(barrio.id));
+            }
         });
 
         mostrarNotificacion('Mapa actualizado correctamente', 'success');
@@ -1019,4 +1221,29 @@ async function cargarMapa() {
         console.error('Error al cargar mapa:', error);
         mostrarNotificacion('Error al cargar el mapa', 'error');
     }
+}
+
+// Editar barrio existente
+async function editarBarrioCirculo(barrioId) {
+    const barrio = barriosPersonalizados.find(b => b.id === barrioId);
+    if (!barrio) return;
+    
+    await cargarListaBarriosModal();
+    
+    document.getElementById('barrio-lat').value = barrio.lat;
+    document.getElementById('barrio-lng').value = barrio.lng;
+    document.getElementById('barrio-edit-id').value = barrio.id;
+    document.getElementById('select-barrio-mapa').value = barrio.nombre;
+    document.getElementById('nuevo-barrio-nombre').value = '';
+    document.getElementById('modal-barrio-titulo').textContent = '✏️ Editar Barrio';
+    document.getElementById('btn-eliminar-barrio').style.display = 'inline-block';
+    
+    // Seleccionar color
+    const colorRadio = document.querySelector(`input[name="color-barrio"][value="${barrio.color}"]`);
+    if (colorRadio) {
+        colorRadio.checked = true;
+    }
+    
+    document.getElementById('modal-barrio').classList.add('show');
+    document.getElementById('modal-barrio-overlay').style.display = 'block';
 }

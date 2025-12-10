@@ -276,6 +276,9 @@ def obtener_estadisticas():
 def obtener_estadisticas_barrios():
     """Endpoint para obtener estadísticas de castraciones por barrio para el mapa"""
     try:
+        import unicodedata
+        import re
+        
         conn = db.get_connection()
         cursor = conn.cursor()
         
@@ -292,12 +295,104 @@ def obtener_estadisticas_barrios():
         resultados = cursor.fetchall()
         conn.close()
         
-        # Convertir a diccionario
-        barrios_stats = {}
+        # Función para normalizar nombres de barrios
+        def normalizar_barrio(nombre):
+            if not nombre:
+                return ""
+            # Remover tildes
+            nombre = ''.join(c for c in unicodedata.normalize('NFD', nombre) 
+                           if unicodedata.category(c) != 'Mn')
+            # Convertir a minúsculas y remover espacios extras
+            nombre = re.sub(r'\s+', ' ', nombre.lower().strip())
+            # Remover palabras comunes
+            nombre = re.sub(r'\b(barrio|sum|b°|bº)\b', '', nombre).strip()
+            return nombre
+        
+        # Agrupar barrios por nombre normalizado
+        barrios_agrupados = {}
         for barrio, total in resultados:
-            barrios_stats[barrio] = total
+            barrio_normalizado = normalizar_barrio(barrio)
+            if barrio_normalizado:
+                if barrio_normalizado not in barrios_agrupados:
+                    barrios_agrupados[barrio_normalizado] = {
+                        'nombre_original': barrio,
+                        'total': 0,
+                        'variantes': []
+                    }
+                barrios_agrupados[barrio_normalizado]['total'] += total
+                barrios_agrupados[barrio_normalizado]['variantes'].append(barrio)
+        
+        # Convertir a diccionario con el nombre original más común
+        barrios_stats = {}
+        for datos in barrios_agrupados.values():
+            # Usar el nombre original más frecuente o el primero
+            nombre = datos['nombre_original']
+            barrios_stats[nombre] = datos['total']
         
         return jsonify(barrios_stats)
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/barrios/lista', methods=['GET'])
+@login_required
+def obtener_lista_barrios():
+    """Endpoint para obtener lista de todos los barrios registrados con conteo"""
+    try:
+        import unicodedata
+        import re
+        
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        query = db.convert_query('''
+            SELECT barrio, COUNT(*) as registros
+            FROM tutores
+            WHERE barrio IS NOT NULL AND barrio != ''
+            GROUP BY barrio
+            ORDER BY registros DESC
+        ''')
+        
+        cursor.execute(query)
+        resultados = cursor.fetchall()
+        conn.close()
+        
+        # Función para normalizar nombres
+        def normalizar_barrio(nombre):
+            if not nombre:
+                return ""
+            nombre = ''.join(c for c in unicodedata.normalize('NFD', nombre) 
+                           if unicodedata.category(c) != 'Mn')
+            nombre = re.sub(r'\s+', ' ', nombre.lower().strip())
+            nombre = re.sub(r'\b(barrio|sum|b°|bº)\b', '', nombre).strip()
+            return nombre
+        
+        # Agrupar barrios similares
+        barrios_agrupados = {}
+        for barrio, registros in resultados:
+            barrio_normalizado = normalizar_barrio(barrio)
+            if barrio_normalizado:
+                if barrio_normalizado not in barrios_agrupados:
+                    barrios_agrupados[barrio_normalizado] = {
+                        'nombre': barrio,
+                        'registros': 0,
+                        'variantes': []
+                    }
+                barrios_agrupados[barrio_normalizado]['registros'] += registros
+                if barrio not in barrios_agrupados[barrio_normalizado]['variantes']:
+                    barrios_agrupados[barrio_normalizado]['variantes'].append(barrio)
+        
+        # Convertir a lista ordenada
+        barrios_lista = []
+        for datos in barrios_agrupados.values():
+            barrios_lista.append({
+                'nombre': datos['nombre'],
+                'registros': datos['registros'],
+                'variantes': datos['variantes']
+            })
+        
+        barrios_lista.sort(key=lambda x: x['registros'], reverse=True)
+        
+        return jsonify(barrios_lista)
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 

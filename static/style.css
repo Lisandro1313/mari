@@ -1187,3 +1187,58 @@ body {
         height: 16px;
     }
 }
+
+/* SELECTOR DE COLORES PARA BARRIOS */
+.color-option {
+    display: inline-flex;
+    cursor: pointer;
+    position: relative;
+}
+
+.color-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+}
+
+.color-preview {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    transition: all 0.3s;
+    cursor: pointer;
+}
+
+.color-option input[type="radio"]:checked + .color-preview {
+    border-color: var(--primary);
+    transform: scale(1.1);
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+.color-option:hover .color-preview {
+    transform: scale(1.05);
+}
+
+/* Botones del mapa en modo edición */
+#btn-agregar-barrio.active {
+    background: var(--success);
+    animation: pulse 2s infinite;
+}
+
+#btn-editar-barrios.active {
+    background: var(--warning);
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* Cursor personalizado en modo agregar */
+.map-adding-mode {
+    cursor: crosshair !important;
+}
+
+.map-adding-mode * {
+    cursor: crosshair !important;
+}
