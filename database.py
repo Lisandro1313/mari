@@ -176,33 +176,20 @@ class Database:
         cursor = conn.cursor()
         
         try:
-            # Buscar o crear tutor
-            cursor.execute(self.convert_query('SELECT id FROM tutores WHERE dni = %s'), (dni,))
-            tutor = cursor.fetchone()
-            
-            if tutor:
-                tutor_id = tutor[0]
-                # Actualizar datos del tutor
+            # Crear siempre un nuevo tutor para cada atención (evita conflictos de barrio/dirección)
+            if self.db_type == 'postgresql':
                 cursor.execute(self.convert_query('''
-                    UPDATE tutores 
-                    SET nombre_apellido = %s, direccion = %s, barrio = %s, telefono = %s
-                    WHERE id = %s
-                '''), (nombre_apellido, direccion, barrio, telefono, tutor_id))
+                    INSERT INTO tutores (nombre_apellido, dni, direccion, barrio, telefono)
+                    VALUES (%s, %s, %s, %s, %s)
+                    RETURNING id
+                '''), (nombre_apellido, dni, direccion, barrio, telefono))
+                tutor_id = self.get_lastrowid(cursor)
             else:
-                # Crear nuevo tutor
-                if self.db_type == 'postgresql':
-                    cursor.execute(self.convert_query('''
-                        INSERT INTO tutores (nombre_apellido, dni, direccion, barrio, telefono)
-                        VALUES (%s, %s, %s, %s, %s)
-                        RETURNING id
-                    '''), (nombre_apellido, dni, direccion, barrio, telefono))
-                    tutor_id = self.get_lastrowid(cursor)
-                else:
-                    cursor.execute(self.convert_query('''
-                        INSERT INTO tutores (nombre_apellido, dni, direccion, barrio, telefono)
-                        VALUES (%s, %s, %s, %s, %s)
-                    '''), (nombre_apellido, dni, direccion, barrio, telefono))
-                    tutor_id = cursor.lastrowid
+                cursor.execute(self.convert_query('''
+                    INSERT INTO tutores (nombre_apellido, dni, direccion, barrio, telefono)
+                    VALUES (%s, %s, %s, %s, %s)
+                '''), (nombre_apellido, dni, direccion, barrio, telefono))
+                tutor_id = cursor.lastrowid
             
             # Agregar atención
             cursor.execute(self.convert_query('''
@@ -249,36 +236,24 @@ class Database:
             
             datos_anteriores = f"#{row_anterior[1]} - {row_anterior[4]} ({row_anterior[5]}) - Tutor: {row_anterior[-2]}"
             
-            # Primero, actualizar o crear tutor
+            # SIEMPRE crear un tutor NUEVO al editar (evita afectar otros registros que compartan tutor)
             dni = datos.get('dni')
-            cursor.execute(self.convert_query('SELECT id FROM tutores WHERE dni = %s'), (dni,))
-            tutor_result = cursor.fetchone()
             
-            if tutor_result:
-                tutor_id = tutor_result[0]
-                # Actualizar tutor existente
+            if self.db_type == 'postgresql':
                 cursor.execute(self.convert_query('''
-                    UPDATE tutores 
-                    SET nombre_apellido = %s, direccion = %s, barrio = %s, telefono = %s
-                    WHERE id = %s
-                '''), (datos.get('nombre_apellido'), datos.get('direccion', ''), 
-                      datos.get('barrio', ''), datos.get('telefono', ''), tutor_id))
+                    INSERT INTO tutores (nombre_apellido, dni, direccion, barrio, telefono)
+                    VALUES (%s, %s, %s, %s, %s)
+                    RETURNING id
+                '''), (datos.get('nombre_apellido'), dni, datos.get('direccion', ''),
+                      datos.get('barrio', ''), datos.get('telefono', '')))
+                nuevo_tutor_id = cursor.fetchone()[0]
             else:
-                # Crear nuevo tutor
-                if self.db_type == 'postgresql':
-                    cursor.execute(self.convert_query('''
-                        INSERT INTO tutores (nombre_apellido, dni, direccion, barrio, telefono)
-                        VALUES (%s, %s, %s, %s, %s) RETURNING id
-                    '''), (datos.get('nombre_apellido'), dni, datos.get('direccion', ''),
-                          datos.get('barrio', ''), datos.get('telefono', '')))
-                    tutor_id = cursor.fetchone()[0]
-                else:
-                    cursor.execute(self.convert_query('''
-                        INSERT INTO tutores (nombre_apellido, dni, direccion, barrio, telefono)
-                        VALUES (%s, %s, %s, %s, %s)
-                    '''), (datos.get('nombre_apellido'), dni, datos.get('direccion', ''),
-                          datos.get('barrio', ''), datos.get('telefono', '')))
-                    tutor_id = cursor.lastrowid
+                cursor.execute(self.convert_query('''
+                    INSERT INTO tutores (nombre_apellido, dni, direccion, barrio, telefono)
+                    VALUES (%s, %s, %s, %s, %s)
+                '''), (datos.get('nombre_apellido'), dni, datos.get('direccion', ''),
+                      datos.get('barrio', ''), datos.get('telefono', '')))
+                nuevo_tutor_id = cursor.lastrowid
             
             # Actualizar datos de la atención
             cursor.execute(self.convert_query('''
@@ -291,7 +266,7 @@ class Database:
                   datos.get('sexo'), datos.get('edad', ''), datos.get('motivo', ''), 
                   datos.get('diagnostico', ''), datos.get('tratamiento', ''), 
                   datos.get('derivacion', ''), datos.get('observaciones', ''), 
-                  tutor_id, numero))
+                  nuevo_tutor_id, numero))
             
             # Registrar en auditoría
             datos_nuevos = f"#{numero} - {datos.get('nombre_animal')} ({datos.get('especie')})"

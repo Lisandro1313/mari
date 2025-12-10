@@ -17,6 +17,26 @@ app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hora
 database_url = os.environ.get('DATABASE_URL')
 db = Database(db_url=database_url) if database_url else Database(db_url='sqlite:///mari.db')
 
+# EJECUTAR MIGRACIÓN: Eliminar constraint UNIQUE de DNI (solo una vez al inicio)
+if database_url and 'postgresql' in database_url:
+    try:
+        print("🔧 Eliminando constraint UNIQUE de DNI en PostgreSQL...")
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        # Intentar eliminar el constraint
+        try:
+            cursor.execute("ALTER TABLE tutores DROP CONSTRAINT IF EXISTS tutores_dni_key;")
+            print("  ✓ Constraint tutores_dni_key eliminado")
+        except Exception as e:
+            print(f"  - Error al eliminar constraint: {e}")
+        
+        conn.commit()
+        conn.close()
+        print("✅ Migración completada")
+    except Exception as e:
+        print(f"❌ Error en migración: {e}")
+
 # Credenciales de login
 USUARIO = 'mariateresa'
 PASSWORD = 'mateca'
@@ -293,10 +313,30 @@ def obtener_atencion(numero):
             return jsonify({'success': False, 'message': 'Registro no encontrado'}), 404
         
         row = resultados[0]
+        
+        # Formatear fecha para input type="date" (YYYY-MM-DD)
+        fecha = row[2]
+        if fecha:
+            # Si es un objeto datetime o date
+            if hasattr(fecha, 'strftime'):
+                fecha = fecha.strftime('%Y-%m-%d')
+            # Si es string
+            elif isinstance(fecha, str):
+                # Si viene en formato DD/MM/YYYY
+                if '/' in fecha:
+                    partes = fecha.split('/')
+                    if len(partes) == 3:
+                        fecha = f"{partes[2].split(' ')[0]}-{partes[1].zfill(2)}-{partes[0].zfill(2)}"
+                # Si viene con hora, extraer solo la fecha
+                elif ' ' in fecha:
+                    fecha = fecha.split(' ')[0]
+                elif 'T' in fecha:
+                    fecha = fecha.split('T')[0]
+        
         atencion = {
             'id': row[0],
             'numero': row[1],
-            'fecha': row[2],
+            'fecha': fecha,
             'tipo_atencion': row[3],
             'nombre_animal': row[4],
             'especie': row[5],
@@ -462,9 +502,21 @@ def obtener_auditoria():
         # Convertir a formato JSON
         resultado = []
         for log in logs:
+            # Convertir fecha_hora a string ISO si es necesario
+            fecha_hora = log[1]
+            if isinstance(fecha_hora, datetime):
+                fecha_hora = fecha_hora.isoformat()
+            elif isinstance(fecha_hora, str):
+                # Si ya es string, asegurarse que esté en formato ISO
+                try:
+                    dt = datetime.fromisoformat(fecha_hora.replace(' ', 'T'))
+                    fecha_hora = dt.isoformat()
+                except:
+                    pass  # Si falla, usar el valor original
+            
             resultado.append({
                 'id': log[0],
-                'fecha_hora': log[1],
+                'fecha_hora': fecha_hora,
                 'tipo_operacion': log[2],
                 'tabla': log[3],
                 'registro_id': log[4],

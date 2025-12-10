@@ -7,7 +7,7 @@ function toggleMenu() {
     const sidebar = document.getElementById('sidebar');
     const menuToggle = document.querySelector('.menu-toggle');
     const menuOverlay = document.querySelector('.menu-overlay');
-    
+
     sidebar.classList.toggle('active');
     menuToggle.classList.toggle('active');
     menuOverlay.classList.toggle('active');
@@ -63,10 +63,24 @@ async function cargarSiguienteNumero() {
     try {
         const response = await fetch('/api/siguiente-numero');
         const data = await response.json();
-        document.getElementById('numero').value = data.numero;
+        const numeroInput = document.getElementById('numero');
+        numeroInput.value = data.numero;
+
+        // Prevenir edición manual solo si no se configuró antes
+        if (!numeroInput.dataset.configured) {
+            numeroInput.addEventListener('keydown', (e) => e.preventDefault());
+            numeroInput.addEventListener('paste', (e) => e.preventDefault());
+            numeroInput.dataset.configured = 'true';
+        }
     } catch (error) {
         console.error('Error al cargar siguiente número:', error);
     }
+}
+
+function incrementarNumero() {
+    const numeroInput = document.getElementById('numero');
+    const numeroActual = parseInt(numeroInput.value) || 0;
+    numeroInput.value = numeroActual + 1;
 }
 
 // ===== NAVEGACIÓN =====
@@ -85,13 +99,13 @@ function showSection(sectionName) {
     const sidebar = document.getElementById('sidebar');
     const menuToggle = document.querySelector('.menu-toggle');
     const menuOverlay = document.querySelector('.menu-overlay');
-    
+
     if (sidebar.classList.contains('active')) {
         sidebar.classList.remove('active');
         menuToggle.classList.remove('active');
         menuOverlay.classList.remove('active');
     }
-    
+
     // Actualizar nav
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
     document.querySelector(`[data-section="${sectionName}"]`).classList.add('active');
@@ -116,6 +130,13 @@ function showSection(sectionName) {
 
     // Cargar datos específicos
     if (sectionName === 'dashboard') cargarDashboard();
+    if (sectionName === 'registro') {
+        // Solo cargar número del servidor si el campo está vacío
+        const numeroInput = document.getElementById('numero');
+        if (!numeroInput.value && !window.editandoNumero) {
+            cargarSiguienteNumero();
+        }
+    }
     if (sectionName === 'estadisticas') cargarEstadisticas();
     if (sectionName === 'mapa') cargarMapa();
     if (sectionName === 'turnos') cargarTodosTurnos();
@@ -301,12 +322,19 @@ function setupFormHandlers() {
                 e.target.reset();
                 establecerFechaActual();
 
-                // Limpiar modo edición
+                // Limpiar modo edición y restaurar título
                 if (isEditing) {
                     delete window.editandoNumero;
+                    document.getElementById('section-title').textContent = 'Nueva Atención';
+                    document.getElementById('section-subtitle').textContent = 'Registrar castración o atención primaria';
+                    const submitBtn = document.querySelector('#form-atencion button[type="submit"]');
+                    if (submitBtn) {
+                        submitBtn.textContent = 'Registrar Atención';
+                    }
+                    cargarSiguienteNumero(); // Cargar siguiente número del servidor
                     cargarDashboard();
                 } else {
-                    cargarSiguienteNumero();
+                    cargarSiguienteNumero(); // Cargar siguiente número del servidor
                 }
 
                 document.querySelectorAll('.tipo-option').forEach((opt, i) => {
@@ -361,12 +389,23 @@ function setupFormHandlers() {
 function limpiarFormulario() {
     document.getElementById('form-atencion').reset();
     establecerFechaActual();
-    cargarSiguienteNumero();
+    cargarSiguienteNumero(); // Cargar siguiente número del servidor
     document.querySelectorAll('.tipo-option').forEach((opt, i) => {
         if (i === 0) opt.classList.add('active');
         else opt.classList.remove('active');
     });
     document.getElementById('section-atencion-primaria').style.display = 'none';
+
+    // Restaurar título y botón si estaba editando
+    if (window.editandoNumero) {
+        delete window.editandoNumero;
+        document.getElementById('section-title').textContent = 'Nueva Atención';
+        document.getElementById('section-subtitle').textContent = 'Registrar castración o atención primaria';
+        const submitBtn = document.querySelector('#form-atencion button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.textContent = 'Registrar Atención';
+        }
+    }
 }
 
 // ===== BÚSQUEDA =====
@@ -383,7 +422,28 @@ async function editarRegistro(numero) {
 
         // Llenar formulario con datos existentes
         document.getElementById('numero').value = data.numero;
-        document.getElementById('fecha').value = data.fecha;
+
+        // Convertir fecha al formato YYYY-MM-DD para el input type="date"
+        let fechaFormateada = data.fecha;
+        if (data.fecha) {
+            // Si viene en formato DD/MM/YYYY o con hora
+            if (data.fecha.includes('/')) {
+                const partes = data.fecha.split('/');
+                if (partes.length === 3) {
+                    fechaFormateada = `${partes[2].split(' ')[0]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
+                }
+            } else if (data.fecha.includes('T')) {
+                // Si viene en formato ISO
+                fechaFormateada = data.fecha.split('T')[0];
+            } else if (data.fecha.includes(' ')) {
+                // Si viene en formato YYYY-MM-DD HH:MM:SS
+                fechaFormateada = data.fecha.split(' ')[0];
+            } else if (data.fecha.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                // Ya está en formato correcto
+                fechaFormateada = data.fecha;
+            }
+        }
+        document.getElementById('fecha').value = fechaFormateada;
 
         // Seleccionar tipo de atención
         const tipoRadios = document.getElementsByName('tipo_atencion');
@@ -420,6 +480,16 @@ async function editarRegistro(numero) {
 
         // Cambiar a sección de registro
         showSection('registro');
+
+        // Cambiar título y apariencia para modo edición
+        document.getElementById('section-title').textContent = `Edición de Registro #${numero}`;
+        document.getElementById('section-subtitle').textContent = 'Modificar datos de la atención';
+
+        // Cambiar texto del botón
+        const submitBtn = document.querySelector('#form-atencion button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.textContent = 'Guardar Cambios';
+        }
 
         // Guardar número para edición
         window.editandoNumero = numero;
@@ -532,7 +602,7 @@ async function cargarEstadisticas() {
 
         // Actualizar totales en tarjetas
         actualizarTotalesEstadisticas(stats);
-        
+
         renderizarGraficos(stats);
     } catch (error) {
         mostrarNotificacion('Error al cargar estadísticas', 'error');
@@ -543,19 +613,19 @@ function actualizarTotalesEstadisticas(stats) {
     // Total de atenciones
     const totalAtenciones = stats.total || 0;
     document.getElementById('total-atenciones').textContent = totalAtenciones;
-    
+
     // Castraciones y Atención Primaria
     const castraciones = stats.por_tipo ? (stats.por_tipo.find(t => t[0] === 'castracion')?.[1] || 0) : 0;
     const atencionPrimaria = stats.por_tipo ? (stats.por_tipo.find(t => t[0] === 'atencion_primaria')?.[1] || 0) : 0;
     document.getElementById('total-castraciones').textContent = castraciones;
     document.getElementById('total-atencion-primaria').textContent = atencionPrimaria;
-    
+
     // Caninos y Felinos
     const caninos = stats.por_especie ? (stats.por_especie.find(e => e[0] === 'Canino')?.[1] || 0) : 0;
     const felinos = stats.por_especie ? (stats.por_especie.find(e => e[0] === 'Felino')?.[1] || 0) : 0;
     document.getElementById('total-caninos').textContent = caninos;
     document.getElementById('total-felinos').textContent = felinos;
-    
+
     // Hembras y Machos
     const hembras = stats.por_sexo ? (stats.por_sexo.find(s => s[0] === 'Hembra')?.[1] || 0) : 0;
     const machos = stats.por_sexo ? (stats.por_sexo.find(s => s[0] === 'Macho')?.[1] || 0) : 0;
@@ -682,7 +752,7 @@ function renderChart(canvasId, type, data, title) {
 // ===== UTILIDADES =====
 function formatearFecha(fecha) {
     if (!fecha) return 'No especificada';
-    
+
     // Si es un string con formato ISO (2025-11-27) o fecha completa
     if (typeof fecha === 'string') {
         // Si viene en formato GMT (Thu, 27 Nov 2025 00:00:00 GMT)
@@ -693,17 +763,17 @@ function formatearFecha(fecha) {
             const year = date.getFullYear();
             return `${day}/${month}/${year}`;
         }
-        
+
         // Extraer solo la parte de la fecha si viene con hora (2025-11-27T00:00:00)
         const soloFecha = fecha.split('T')[0].split(' ')[0];
-        
+
         // Si tiene formato YYYY-MM-DD
         if (soloFecha.includes('-')) {
             const [year, month, day] = soloFecha.split('-');
             return `${day}/${month}/${year}`;
         }
     }
-    
+
     // Si es un objeto Date
     if (fecha instanceof Date) {
         const day = String(fecha.getDate()).padStart(2, '0');
@@ -711,7 +781,7 @@ function formatearFecha(fecha) {
         const year = fecha.getFullYear();
         return `${day}/${month}/${year}`;
     }
-    
+
     return fecha.toString();
 }
 
@@ -752,14 +822,26 @@ async function cargarAuditoria() {
         html += '</tr></thead><tbody>';
 
         logs.forEach(log => {
-            const fecha = new Date(log.fecha_hora + 'Z').toLocaleString('es-AR', {
-                timeZone: 'America/Argentina/Buenos_Aires',
+            // Parsear fecha de forma robusta
+            let fechaObj;
+            if (log.fecha_hora.includes('T')) {
+                // Formato ISO: 2025-11-30T10:15:30 o 2025-11-30T10:15:30.000000
+                fechaObj = new Date(log.fecha_hora);
+            } else if (log.fecha_hora.includes(' ')) {
+                // Formato SQL: 2025-11-30 10:15:30
+                fechaObj = new Date(log.fecha_hora.replace(' ', 'T'));
+            } else {
+                fechaObj = new Date(log.fecha_hora);
+            }
+
+            const fecha = fechaObj.toLocaleString('es-AR', {
                 year: 'numeric',
                 month: '2-digit',
                 day: '2-digit',
                 hour: '2-digit',
                 minute: '2-digit',
-                second: '2-digit'
+                second: '2-digit',
+                hour12: false
             });
             const tipo = log.tipo_operacion;
             const badgeClass = tipo === 'DELETE' ? 'delete' : 'update';
