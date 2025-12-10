@@ -106,6 +106,7 @@ function showSection(sectionName) {
         registro: { title: 'Nueva Atención', subtitle: 'Registrar castración o atención primaria' },
         busqueda: { title: 'Búsqueda', subtitle: 'Consultar atenciones registradas' },
         estadisticas: { title: 'Estadísticas', subtitle: 'Análisis y reportes' },
+        mapa: { title: 'Mapa de Cobertura', subtitle: 'Visualización geográfica por barrio' },
         turnos: { title: 'Agenda', subtitle: 'Gestión de turnos' },
         auditoria: { title: 'Historial de Cambios', subtitle: 'Auditoría del sistema' }
     };
@@ -116,6 +117,7 @@ function showSection(sectionName) {
     // Cargar datos específicos
     if (sectionName === 'dashboard') cargarDashboard();
     if (sectionName === 'estadisticas') cargarEstadisticas();
+    if (sectionName === 'mapa') cargarMapa();
     if (sectionName === 'turnos') cargarTodosTurnos();
     if (sectionName === 'auditoria') cargarAuditoria();
 }
@@ -826,5 +828,113 @@ async function exportarExcel() {
         }
     } catch (error) {
         mostrarNotificacion('Error al exportar datos', 'error');
+    }
+}
+
+// ===== MAPA INTERACTIVO =====
+// Coordenadas aproximadas de barrios de Gualeguaychú, Entre Ríos
+const barriosGualeguaychu = {
+    "Centro": { lat: -33.0095, lng: -58.5173, color: "#FF6B6B" },
+    "Pueblo Nuevo": { lat: -33.0150, lng: -58.5250, color: "#4ECDC4" },
+    "Barrio Parque": { lat: -33.0000, lng: -58.5100, color: "#45B7D1" },
+    "Pueblo Belgrano": { lat: -33.0200, lng: -58.5300, color: "#FFA07A" },
+    "Villa Elisa": { lat: -32.9950, lng: -58.5050, color: "#96CEB4" },
+    "Larralde": { lat: -33.0180, lng: -58.5080, color: "#FFEAA7" },
+    "San José": { lat: -33.0250, lng: -58.5200, color: "#DFE6E9" },
+    "San Antonio": { lat: -33.0120, lng: -58.5350, color: "#A29BFE" },
+    "San Martín": { lat: -33.0050, lng: -58.5280, color: "#FD79A8" },
+    "Rocamora": { lat: -33.0300, lng: -58.5150, color: "#FDCB6E" },
+    "Yapeyu": { lat: -32.9980, lng: -58.5200, color: "#6C5CE7" },
+    "Juan Manuel de Rosas": { lat: -33.0080, lng: -58.5400, color: "#00B894" },
+    "Villa Libertad": { lat: -33.0350, lng: -58.5250, color: "#E17055" },
+    "Ramón Carrillo": { lat: -33.0220, lng: -58.5380, color: "#74B9FF" },
+    "Pueblo Liebig": { lat: -33.0450, lng: -58.5100, color: "#55EFC4" },
+    "Villa Mariano Moreno": { lat: -33.0280, lng: -58.5450, color: "#FFAAA5" },
+    "Barrio Ayuí": { lat: -33.0380, lng: -58.5350, color: "#A4B787" }
+};
+
+let mapaLeaflet = null;
+
+async function cargarMapa() {
+    try {
+        // Fetch de datos de castraciones por barrio
+        const response = await fetch('/api/estadisticas/barrios');
+        const data = await response.json();
+
+        // Inicializar mapa si no existe
+        if (!mapaLeaflet) {
+            mapaLeaflet = L.map('map').setView([-33.0095, -58.5173], 13);
+
+            // Agregar capa de OpenStreetMap
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 18
+            }).addTo(mapaLeaflet);
+        } else {
+            // Limpiar marcadores previos
+            mapaLeaflet.eachLayer((layer) => {
+                if (layer instanceof L.Circle || layer instanceof L.Marker) {
+                    mapaLeaflet.removeLayer(layer);
+                }
+            });
+        }
+
+        // Dibujar círculos para cada barrio
+        Object.keys(barriosGualeguaychu).forEach(barrio => {
+            const coords = barriosGualeguaychu[barrio];
+            const cantidad = data[barrio] || 0;
+
+            // Determinar color y tamaño según cantidad
+            let color, radius;
+            if (cantidad >= 30) {
+                color = 'rgba(255, 107, 107, 0.6)'; // Rojo - alta cobertura
+                radius = 600;
+            } else if (cantidad >= 10) {
+                color = 'rgba(255, 160, 122, 0.6)'; // Naranja - media
+                radius = 400;
+            } else if (cantidad > 0) {
+                color = 'rgba(78, 205, 196, 0.6)'; // Turquesa - baja
+                radius = 250;
+            } else {
+                color = 'rgba(200, 200, 200, 0.4)'; // Gris - sin datos
+                radius = 150;
+            }
+
+            // Ajustar radio proporcionalmente a la cantidad
+            if (cantidad > 0) {
+                radius = Math.max(150, Math.min(800, cantidad * 15));
+            }
+
+            // Crear círculo en el mapa
+            const circle = L.circle([coords.lat, coords.lng], {
+                color: cantidad > 0 ? coords.color : '#999',
+                fillColor: color,
+                fillOpacity: 0.6,
+                radius: radius,
+                weight: cantidad > 0 ? 2 : 1,
+                dashArray: cantidad > 0 ? null : '5, 5'
+            }).addTo(mapaLeaflet);
+
+            // Popup con información
+            circle.bindPopup(`
+                <div style="text-align: center; padding: 5px;">
+                    <strong style="font-size: 14px;">${barrio}</strong><br>
+                    <span style="font-size: 16px; color: ${cantidad > 0 ? '#2ecc71' : '#95a5a6'};">
+                        ${cantidad} castración${cantidad !== 1 ? 'es' : ''}
+                    </span>
+                </div>
+            `);
+
+            // Tooltip al pasar el mouse
+            circle.bindTooltip(`${barrio}: ${cantidad}`, {
+                permanent: false,
+                direction: 'top'
+            });
+        });
+
+        mostrarNotificacion('Mapa actualizado correctamente', 'success');
+    } catch (error) {
+        console.error('Error al cargar mapa:', error);
+        mostrarNotificacion('Error al cargar el mapa', 'error');
     }
 }

@@ -6,7 +6,9 @@
     <title>Veterinaria Municipal - Sistema de Atención Veterinaria</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏥</text></svg>">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=2.1">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
     <!-- BOTÓN HAMBURGUESA MÓVIL -->
@@ -42,6 +44,10 @@
             <a href="#" class="nav-item" data-section="estadisticas">
                 <span class="nav-icon">📈</span>
                 <span>Estadísticas</span>
+            </a>
+            <a href="#" class="nav-item" data-section="mapa">
+                <span class="nav-icon">🗺️</span>
+                <span>Mapa</span>
             </a>
             <a href="#" class="nav-item" data-section="turnos">
                 <span class="nav-icon">📅</span>
@@ -411,6 +417,42 @@
                     <h4>Top 10 Barrios</h4>
                     <p id="stats-barrio-texto" class="stats-summary"></p>
                     <canvas id="chart-barrios"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- MAPA SECTION -->
+        <section id="mapa" class="content-section">
+            <div class="map-card">
+                <div class="card-header">
+                    <div>
+                        <h3>🗺️ Mapa de Castraciones por Barrio</h3>
+                        <p class="card-subtitle">Visualización geográfica de cobertura en Gualeguaychú</p>
+                    </div>
+                    <button onclick="cargarMapa()" class="btn btn-primary">🔄 Actualizar</button>
+                </div>
+                <div class="map-container">
+                    <div id="map"></div>
+                    <div class="map-legend">
+                        <h4>📍 Leyenda</h4>
+                        <div class="legend-item">
+                            <span class="legend-circle" style="background: rgba(255, 107, 107, 0.6);"></span>
+                            <span>Alta cobertura (30+ castraciones)</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-circle" style="background: rgba(255, 160, 122, 0.6);"></span>
+                            <span>Cobertura media (10-29)</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-circle" style="background: rgba(78, 205, 196, 0.6);"></span>
+                            <span>Baja cobertura (1-9)</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-circle" style="background: rgba(200, 200, 200, 0.4); border: 2px dashed #999;"></span>
+                            <span>Sin castraciones registradas</span>
+                        </div>
+                        <p class="legend-note">💡 Tamaño del círculo = cantidad de castraciones</p>
+                    </div>
                 </div>
             </div>
         </section>

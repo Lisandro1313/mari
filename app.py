@@ -251,6 +251,36 @@ def obtener_estadisticas():
         'especie_sexo': stats['especie_sexo']
     })
 
+@app.route('/api/estadisticas/barrios', methods=['GET'])
+@login_required
+def obtener_estadisticas_barrios():
+    """Endpoint para obtener estadísticas de castraciones por barrio para el mapa"""
+    try:
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        query = db.convert_query('''
+            SELECT t.barrio, COUNT(a.id) as total
+            FROM atenciones a
+            JOIN tutores t ON a.tutor_id = t.id
+            WHERE a.tipo_atencion = %s AND t.barrio IS NOT NULL AND t.barrio != ''
+            GROUP BY t.barrio
+            ORDER BY total DESC
+        ''')
+        
+        cursor.execute(query, ('castracion',))
+        resultados = cursor.fetchall()
+        conn.close()
+        
+        # Convertir a diccionario
+        barrios_stats = {}
+        for barrio, total in resultados:
+            barrios_stats[barrio] = total
+        
+        return jsonify(barrios_stats)
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @app.route('/api/atenciones/<int:numero>', methods=['GET'])
 @login_required
 def obtener_atencion(numero):
