@@ -1114,7 +1114,8 @@ body {
 
 .map-container {
     position: relative;
-    height: 600px;
+    height: calc(100vh - 240px);
+    min-height: 500px;
     background: #f8f9fa;
 }
 

@@ -157,6 +157,18 @@ class Database:
             )
         ''')
         
+        # Tabla de barrios en el mapa
+        cursor.execute(f'''
+            CREATE TABLE IF NOT EXISTS barrios_mapa (
+                id {pk},
+                nombre TEXT NOT NULL,
+                latitud REAL NOT NULL,
+                longitud REAL NOT NULL,
+                color TEXT DEFAULT '#3498db',
+                fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
         # Crear índices para mejorar rendimiento
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_atenciones_fecha ON atenciones(fecha)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_atenciones_tipo ON atenciones(tipo_atencion)')

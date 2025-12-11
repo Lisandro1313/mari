@@ -920,17 +920,60 @@ let modoAgregar = false;
 let modoEdicion = false;
 let markerTemporal = null;
 
-// Cargar barrios personalizados desde localStorage
-function cargarBarriosPersonalizados() {
-    const guardados = localStorage.getItem('barriosMapaPersonalizados');
-    if (guardados) {
-        barriosPersonalizados = JSON.parse(guardados);
+// Cargar barrios personalizados desde la BD
+async function cargarBarriosPersonalizados() {
+    try {
+        const response = await fetch('/api/barrios/mapa');
+        const data = await response.json();
+        if (data.success) {
+            barriosPersonalizados = data.barrios;
+        }
+    } catch (error) {
+        console.error('Error al cargar barrios del mapa:', error);
     }
 }
 
-// Guardar barrios en localStorage
-function guardarBarriosPersonalizados() {
-    localStorage.setItem('barriosMapaPersonalizados', JSON.stringify(barriosPersonalizados));
+// Guardar barrio en BD
+async function guardarBarrioEnBD(barrio) {
+    try {
+        const response = await fetch('/api/barrios/mapa', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(barrio)
+        });
+        return await response.json();
+    } catch (error) {
+        console.error('Error al guardar barrio:', error);
+        return { success: false };
+    }
+}
+
+// Actualizar barrio en BD
+async function actualizarBarrioEnBD(id, barrio) {
+    try {
+        const response = await fetch(`/api/barrios/mapa/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(barrio)
+        });
+        return await response.json();
+    } catch (error) {
+        console.error('Error al actualizar barrio:', error);
+        return { success: false };
+    }
+}
+
+// Eliminar barrio de BD
+async function eliminarBarrioDeBD(id) {
+    try {
+        const response = await fetch(`/api/barrios/mapa/${id}`, {
+            method: 'DELETE'
+        });
+        return await response.json();
+    } catch (error) {
+        console.error('Error al eliminar barrio:', error);
+        return { success: false };
+    }
 }
 
 // Activar modo agregar barrio
@@ -1001,7 +1044,7 @@ async function onMapClickAgregar(e) {
     document.getElementById('barrio-lng').value = lng;
     document.getElementById('barrio-edit-id').value = '';
     document.getElementById('modal-barrio-titulo').textContent = '➕ Agregar Barrio al Mapa';
-    document.getElementById('btn-eliminar-barrio').style.display = 'none';
+    document.getElementById('btn-eliminar-barrio').style.display = 'none'; // Ocultar al agregar nuevo
     document.getElementById('select-barrio-mapa').value = '';
     document.getElementById('nuevo-barrio-nombre').value = '';
     document.getElementById('modal-barrio').classList.add('show');
@@ -1045,7 +1088,7 @@ function seleccionarBarrioMapa() {
 }
 
 // Guardar barrio en el mapa
-function guardarBarrioMapa() {
+async function guardarBarrioMapa() {
     const select = document.getElementById('select-barrio-mapa');
     const nuevoNombre = document.getElementById('nuevo-barrio-nombre').value.trim();
     const lat = parseFloat(document.getElementById('barrio-lat').value);
@@ -1060,53 +1103,53 @@ function guardarBarrioMapa() {
         return;
     }
     
+    const barrioData = {
+        nombre: nombreBarrio,
+        latitud: lat,
+        longitud: lng,
+        color: colorSeleccionado
+    };
+    
+    let result;
     if (editId) {
         // Editar existente
-        const index = barriosPersonalizados.findIndex(b => b.id === editId);
-        if (index !== -1) {
-            barriosPersonalizados[index] = {
-                id: editId,
-                nombre: nombreBarrio,
-                lat,
-                lng,
-                color: colorSeleccionado
-            };
-        }
+        result = await actualizarBarrioEnBD(editId, barrioData);
     } else {
         // Agregar nuevo
-        barriosPersonalizados.push({
-            id: Date.now().toString(),
-            nombre: nombreBarrio,
-            lat,
-            lng,
-            color: colorSeleccionado
-        });
+        result = await guardarBarrioEnBD(barrioData);
     }
     
-    guardarBarriosPersonalizados();
-    cerrarModalBarrio();
-    cargarMapa();
-    
-    // Desactivar modo agregar
-    if (modoAgregar) {
-        activarModoAgregar();
+    if (result.success) {
+        cerrarModalBarrio();
+        await cargarMapa();
+        
+        // Desactivar modo agregar
+        if (modoAgregar) {
+            activarModoAgregar();
+        }
+        
+        mostrarNotificacion(editId ? 'Barrio actualizado exitosamente' : 'Barrio guardado exitosamente', 'success');
+    } else {
+        mostrarNotificacion('Error al guardar el barrio', 'error');
     }
-    
-    mostrarNotificacion('Barrio guardado exitosamente', 'success');
 }
 
 // Eliminar barrio del mapa
-function eliminarBarrioMapa() {
+async function eliminarBarrioMapa() {
     if (!confirm('¿Está seguro que desea eliminar este barrio del mapa?')) {
         return;
     }
     
     const editId = document.getElementById('barrio-edit-id').value;
-    barriosPersonalizados = barriosPersonalizados.filter(b => b.id !== editId);
-    guardarBarriosPersonalizados();
-    cerrarModalBarrio();
-    cargarMapa();
-    mostrarNotificacion('Barrio eliminado del mapa', 'success');
+    const result = await eliminarBarrioDeBD(editId);
+    
+    if (result.success) {
+        cerrarModalBarrio();
+        await cargarMapa();
+        mostrarNotificacion('Barrio eliminado del mapa', 'success');
+    } else {
+        mostrarNotificacion('Error al eliminar el barrio', 'error');
+    }
 }
 
 // Cerrar modal
@@ -1125,8 +1168,8 @@ function cerrarModalBarrio() {
 // Cargar mapa principal
 async function cargarMapa() {
     try {
-        // Cargar barrios personalizados
-        cargarBarriosPersonalizados();
+        // Cargar barrios personalizados desde BD
+        await cargarBarriosPersonalizados();
         
         // Fetch de datos de castraciones por barrio
         const response = await fetch('/api/estadisticas/barrios');
@@ -1184,7 +1227,7 @@ async function cargarMapa() {
             }
 
             // Crear círculo
-            const circle = L.circle([barrio.lat, barrio.lng], {
+            const circle = L.circle([barrio.latitud, barrio.longitud], {
                 color: barrio.color,
                 fillColor: fillColor,
                 fillOpacity: 0.6,
@@ -1225,13 +1268,13 @@ async function cargarMapa() {
 
 // Editar barrio existente
 async function editarBarrioCirculo(barrioId) {
-    const barrio = barriosPersonalizados.find(b => b.id === barrioId);
+    const barrio = barriosPersonalizados.find(b => b.id == barrioId);
     if (!barrio) return;
     
     await cargarListaBarriosModal();
     
-    document.getElementById('barrio-lat').value = barrio.lat;
-    document.getElementById('barrio-lng').value = barrio.lng;
+    document.getElementById('barrio-lat').value = barrio.latitud;
+    document.getElementById('barrio-lng').value = barrio.longitud;
     document.getElementById('barrio-edit-id').value = barrio.id;
     document.getElementById('select-barrio-mapa').value = barrio.nombre;
     document.getElementById('nuevo-barrio-nombre').value = '';

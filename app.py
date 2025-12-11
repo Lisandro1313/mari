@@ -396,6 +396,127 @@ def obtener_lista_barrios():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
+@app.route('/api/barrios/mapa', methods=['GET'])
+@login_required
+def obtener_barrios_mapa():
+    """Obtener todos los barrios marcados en el mapa"""
+    try:
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        query = db.convert_query('SELECT id, nombre, latitud, longitud, color FROM barrios_mapa ORDER BY nombre')
+        cursor.execute(query)
+        
+        barrios = []
+        for row in cursor.fetchall():
+            barrios.append({
+                'id': row[0],
+                'nombre': row[1],
+                'latitud': row[2],
+                'longitud': row[3],
+                'color': row[4]
+            })
+        
+        conn.close()
+        return jsonify({'success': True, 'barrios': barrios})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/barrios/mapa', methods=['POST'])
+@login_required
+def agregar_barrio_mapa():
+    """Agregar un barrio al mapa"""
+    try:
+        data = request.get_json()
+        nombre = data.get('nombre')
+        latitud = data.get('latitud')
+        longitud = data.get('longitud')
+        color = data.get('color', '#3498db')
+        
+        if not nombre or latitud is None or longitud is None:
+            return jsonify({'success': False, 'message': 'Datos incompletos'}), 400
+        
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        if db.db_type == 'postgresql':
+            cursor.execute('''
+                INSERT INTO barrios_mapa (nombre, latitud, longitud, color)
+                VALUES (%s, %s, %s, %s)
+                RETURNING id
+            ''', (nombre, latitud, longitud, color))
+            nuevo_id = cursor.fetchone()[0]
+        else:
+            cursor.execute('''
+                INSERT INTO barrios_mapa (nombre, latitud, longitud, color)
+                VALUES (?, ?, ?, ?)
+            ''', (nombre, latitud, longitud, color))
+            nuevo_id = cursor.lastrowid
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'id': nuevo_id, 'message': 'Barrio agregado al mapa'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/barrios/mapa/<int:barrio_id>', methods=['PUT'])
+@login_required
+def actualizar_barrio_mapa(barrio_id):
+    """Actualizar un barrio del mapa"""
+    try:
+        data = request.get_json()
+        nombre = data.get('nombre')
+        latitud = data.get('latitud')
+        longitud = data.get('longitud')
+        color = data.get('color', '#3498db')
+        
+        if not nombre or latitud is None or longitud is None:
+            return jsonify({'success': False, 'message': 'Datos incompletos'}), 400
+        
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        if db.db_type == 'postgresql':
+            cursor.execute('''
+                UPDATE barrios_mapa
+                SET nombre = %s, latitud = %s, longitud = %s, color = %s
+                WHERE id = %s
+            ''', (nombre, latitud, longitud, color, barrio_id))
+        else:
+            cursor.execute('''
+                UPDATE barrios_mapa
+                SET nombre = ?, latitud = ?, longitud = ?, color = ?
+                WHERE id = ?
+            ''', (nombre, latitud, longitud, color, barrio_id))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Barrio actualizado'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/barrios/mapa/<int:barrio_id>', methods=['DELETE'])
+@login_required
+def eliminar_barrio_mapa(barrio_id):
+    """Eliminar un barrio del mapa"""
+    try:
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        if db.db_type == 'postgresql':
+            cursor.execute('DELETE FROM barrios_mapa WHERE id = %s', (barrio_id,))
+        else:
+            cursor.execute('DELETE FROM barrios_mapa WHERE id = ?', (barrio_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Barrio eliminado del mapa'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @app.route('/api/atenciones/<int:numero>', methods=['GET'])
 @login_required
 def obtener_atencion(numero):
